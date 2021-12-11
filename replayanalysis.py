@@ -32,13 +32,14 @@ import numpy as np
 import pandas as pd
 
 
+os.chdir("C:/Users/angus/Desktop/SteinmetzLab/Analysis")
 
-os.chdir('C:/Users/angus/Desktop/SteinmetzLab/Analysis')
-
-#we need to find out how many cells are required for replay
+# we need to find out how many cells are required for replay
 
 
-timestamp_tateprobe1 = np.load(r'C:\Users\angus\Desktop\SteinmetzLab\9598406\spikeAndBehavioralData\allData\Tatum_2017-12-09_K3_g0_t0.imec.lf.timestamps.npy')
+timestamp_tateprobe1 = np.load(
+    r"C:\Users\angus\Desktop\SteinmetzLab\9598406\spikeAndBehavioralData\allData\Tatum_2017-12-09_K3_g0_t0.imec.lf.timestamps.npy"
+)
 
 """
 The LFP analysis:
@@ -78,13 +79,3 @@ Reference to understand statespace modelling:
 Murphy, K. P. (2012). Machine learning: a probabilistic perspective. MIT press.
 -see chapter 18
 """
-
-
-
-
-
-
-
-
-
-
