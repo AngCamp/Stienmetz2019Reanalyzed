@@ -6,10 +6,10 @@ Created on Sat Apr 24 12:09:45 2021
  A module to load all Steinmetz et al., 2019 data
  
 FUNCTIONS
-calldata()
-descriptions()
-recording_key()
-datatype_key()
+calldata() -creates dictionaries containind pandas dataframes of Steimetz data
+descriptions() -prints link to Steinmetz data descriptions
+recording_key() -prints names of all recording sessions
+datatype_key() -prints names of all datatypes in each session folder
 
 """
 import numpy as np
@@ -105,11 +105,19 @@ def calldata(recording, list_of_data, steinmetzpath=os.getcwd(), propertysearch=
         # checks steinmetzpath for missing recordings
         cwd_recordings = set()
         list_recs = os.listdir(steinmetzpath)
-
+        
+        
+        #remove this for loop just use list_recs to be compared to allsteinmetzrecordings
+        #making cwd_recordings is jsut not nescessary
         for i in list_recs:
             if os.path.isdir(i):
                 cwd_recordings.add(i)
-
+                
+        
+        #these lines here before the return is the issue causeing the warning to flair up
+        #just use list_recs and check if the steinmetz recordings are present in it
+        #possible solution: https://www.geeksforgeeks.org/python-find-missing-additional-values-two-lists/
+        #come back to it tomorrow after you sleep
         mismatches = set()
         if allsteinmetzrecordings != cwd_recordings:
             mismatches = set(allsteinmetzrecordings.difference(cwd_recordings))
@@ -121,7 +129,7 @@ def calldata(recording, list_of_data, steinmetzpath=os.getcwd(), propertysearch=
         missing = " ".join(missing)
         warnings.warn(
             "Not all recordings from Steimetz et al., 2019 are in the chosen directory.\
-                      Please re-enter the recording value.\
+                      Please re-enter the recording value or check steinmetz path.\
                       The following recordings are missing: "
             + missing
         )

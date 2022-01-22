@@ -102,7 +102,8 @@ import os
 import numpy as np
 import pandas as pd
 
-
+#for ubuntu....
+#cd mnt/c/Users/angus/Desktop/SteinmetzLab/Analysis 
 
 os.chdir('C:/Users/angus/Desktop/SteinmetzLab/Analysis')
 import getSteinmetz2019data as stein
@@ -419,7 +420,7 @@ nogo =~((trials.LeftContrast>0)|(trials.RightContrast>0))
 random = pd.Index((trials.RightContrast == trials.LeftContrast)&(~nogo) )
 
 #Trial Types
-CorrectRight = Righttrial&(trials.Choice==1)&
+CorrectRight = Righttrial&(trials.Choice==1)
 IncorrectRight = not(Righttrial)&(trials.Choice==-1) #1 is a right choice, -1 left, 0 nogo
 CorrectLeft = not(Righttrial)&(trials.Choice==-1)
 IncorrectLeft = not(Righttrial)&(trials.Choice==-1)
