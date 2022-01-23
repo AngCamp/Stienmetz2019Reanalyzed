@@ -107,20 +107,8 @@ def calldata(recording, list_of_data, steinmetzpath=os.getcwd(), propertysearch=
         list_recs = os.listdir(steinmetzpath)
         
         
-        #remove this for loop just use list_recs to be compared to allsteinmetzrecordings
-        #making cwd_recordings is jsut not nescessary
-        for i in list_recs:
-            if os.path.isdir(i):
-                cwd_recordings.add(i)
-                
-        
-        #these lines here before the return is the issue causeing the warning to flair up
-        #just use list_recs and check if the steinmetz recordings are present in it
-        #possible solution: https://www.geeksforgeeks.org/python-find-missing-additional-values-two-lists/
-        #come back to it tomorrow after you sleep
-        mismatches = set()
-        if allsteinmetzrecordings != cwd_recordings:
-            mismatches = set(allsteinmetzrecordings.difference(cwd_recordings))
+        mismatches = set(allsteinmetzrecordings).difference(list_recs)
+
         return mismatches
 
     def missing_recordings_warning(missing):
