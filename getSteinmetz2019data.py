@@ -103,7 +103,6 @@ def calldata(recording, list_of_data, steinmetzpath=os.getcwd(), propertysearch=
     # Checking to make sure steinmetzpath contains the recordings data in the proper format
     def check_recordings_in_cwd():
         # checks steinmetzpath for missing recordings
-        cwd_recordings = set()
         list_recs = os.listdir(steinmetzpath)
         
         
