@@ -7,42 +7,158 @@
 We need to first reun CCA to generate B then we want to find the matrix a 
 (also denoted as a matrix W with vectors w_n for each neruon n).  CCA
 is first run from the toeplitz matrix of diagonalized kernel functions this will reduce
-the dimensionality of the entire time course, we then optimize the weights of the copneents of 
+the dimensionality of the entire time course, we then optimize the weights of the components of 
 this reduced representation.  Minimizations of square error is done by elastic net regularizatuion applied
 on a neuron by neuron basis.  
 
 Currently has matlab code sprinkled in comments to guide development.
 
+Eventually the goal is to turn this into a .ipyn file, the all caps comments
+are notes which denote sections, multi line commebts are quotes from the paper
+which will be included or written up for description of the workflow.
+
 """
+##INTRODUCTION
+####START WITH AN IMAGE OF THE WORKFLOW AND A BRIEF EXPLANATION OF THE MODEL
 
-#preprocess spiking data credit goes to this stack answer: https://stackoverflow.com/questions/71003634/applying-a-half-gaussian-filter-to-binned-time-series-data-in-python/71003897#71003897
-#We need to bin the spikes
-import scipy.ndimage
+import os
+import numpy as np
+import pandas as pd
 
-def halfgaussian_kernel1d(sigma, radius):
-    """
-    Computes a 1-D Half-Gaussian convolution kernel.
-    """
-    sigma2 = sigma * sigma
-    x = np.arange(0, radius+1)
-    phi_x = np.exp(-0.5 / sigma2 * x ** 2)
-    phi_x = phi_x / phi_x.sum()
+#for ubuntu....
+#cd mnt/c/Users/angus/Desktop/SteinmetzLab/Analysis 
 
-    return phi_x
+os.chdir('C:/Users/angus/Desktop/SteinmetzLab/Analysis')
+import getSteinmetz2019data as stein
 
-def halfgaussian_filter1d(input, sigma, axis=-1, output=None,
-                      mode="constant", cval=0.0, truncate=4.0):
-    """
-    Convolves a 1-D Half-Gaussian convolution kernel.
-    """
-    sd = float(sigma)
-    # make the radius of the filter equal to truncate standard deviations
-    lw = int(truncate * sd + 0.5)
-    weights = halfgaussian_kernel1d(sigma, lw)
-    origin = -lw // 2
-    return scipy.ndimage.convolve1d(input, weights, axis, output, mode, cval, origin)
+############ FILTERING
+##Going from neurons across all regions and mice
 
 # Which neurons to include
+"""
+clusters._phy_annotation.npy [enumerated type] (nClusters) 0 = noise (these are already
+excluded and don't appear in this dataset at all); 1 = MUA 
+(i.e. presumed to contain spikes from multiple neurons; these are not analyzed 
+ in any analyses in the paper); 2 = Good (manually labeled); 3 = Unsorted. In 
+this dataset 'Good' was applied in a few but not all datasets to included neurons, 
+so in general the neurons with _phy_annotation>=2 are the ones that should be included.
+"""
+
+#So we should apply the criteria we want and search the data that way.
+
+#when querrying the clusters data we can apply the quality score criteria
+
+allsessions = list(stein.recording_key())
+datapath = os.fspath(r'C:\Users\angus\Desktop\SteinmetzLab\9598406\spikeAndBehavioralData\allData')
+
+for session in stein.recording_key():
+    print(session)
+    #to be filled with criteria bellow
+
+# first we want trial times since we are initially only going to look at
+# data withing the trial times, may as well collect the data we need from them
+# for feeding into toeplitz matrix later
+session = list(stein.recording_key())[1]
+
+
+trials = stein.calldata(session, ['trials.visualStim_contrastLeft.npy',
+                                       'trials.visualStim_contrastRight.npy',
+                                       'trials.response_choice.npy',
+                                       'trials.feedbackType.npy',
+                                       'trials.intervals.npy'], 
+                        steinmetzpath= datapath, propertysearch = False)
+     
+trials = pd.DataFrame({'Choice':list(trials['trialsresponse_choice']),
+                       'LeftContrast':list(trials['trialsvisualStim_contrastLeft']),
+                       'RightContrast':list(trials['trialsvisualStim_contrastRight']),
+                       'feedback':list(trials['trialsfeedbackType']),
+                       'trialstart':list(trials['trialsintervals'][:,0]),
+                       'trialend':list(trials['trialsintervals'][:,1])})
+
+spikes = stein.calldata(session, ['spikes.clusters.npy',
+                                  'spikes.times.npy',
+                                  'clusters._phy_annotation.npy'],
+                        steinmetzpath=datapath)
+
+
+def frequency_array(spikeclusterIDs, spikestimes, start_times, end_times, bin_size,
+                    return_meta_data = True, filter_by_quality= [], minquality = 2):
+    """
+    Takes Alyx format .npy files and load them into a numpy array,
+    can either give you 
+    
+    spikeclusterIDs:  from the 'spikes.clusters.npy' file
+    spikestimes: from the 'spikes.times.npy'
+    start_times: times to start collecting from should have corrresponding equal length 
+    vector of end_times
+    end_times: time to stop collecting spikes
+    
+    return_meta_data: returns ABA location and cluster depth
+    
+    filter_by_quality= false by default if supplied with a vector of quality scores will auto 
+    remove the ones below a certain threshold
+    
+    Returns: A numpy array of spike frequencies for each neuron,
+    if return_meta_data also supplies a dataframe of the cluster ID and
+    corresponding Allen onotlogy data as well as session label
+    
+    """
+    spikeclusterIDs= spikes['spikesclusters'] #delete after testing
+    filter_by_quality = spikes['clusters_phy_annotation'] #delete after testing
+    
+    filter_by_quality = float(filter_by_quality)
+    filter_by_quality= []
+    clusters_idx = pd.Index(np.unique(spikeclusterIDs))
+    clustersfrequency = np.array()
+    
+    #filter out low quality scores only if quality scores are supplied
+    if len(filter_by_quality)>0:
+        filter_by_quality = [int(x) for x in filter_by_quality]
+        is_low = pd.Series(filter_by_quality)
+        is_low = is_low>=miinquality
+        clusters_idx = clusters_idx[is_low]
+        spikeclusterIDs = spikeclusterIDs[is_low]
+    #end if loop
+    
+    
+
+        
+df = pd.DataFrame(np.arange(10).reshape(-1, 2), columns=['A', 'B'])   
+m = df % 3 == 0    
+    
+    for t_1 in start_times:
+        this_bin
+        
+        
+    
+    
+    
+test = unique(spikes['spikes.'])
+    
+    
+
+"""
+We need a for loop over the data, could consider adding this to stein as
+I will likely need to do this again
+
+print(spikes['spikesclusters'][0:5])
+[[1261]
+ [ 961]
+ [ 773]
+ [ 778]
+ [ 996]]
+
+print(spikes['spikestimes'][0:5])
+[[-3.3504999 ]
+ [-3.3503999 ]
+ [-3.3503999 ]
+ [-3.35023323]
+ [-3.3501999 ]]
+"""
+
+
+
+
 """
 The Methods section Data Analysis describes a battery of criteria that are needed, 
 read in detail
@@ -86,6 +202,40 @@ For visualizing firing rates (Extended Data Fig. 4), the activity of each neuron
    versus trials with neither, using a sliding window 0.1 s wide and in steps of 0.005 s 
    (rank-sum P < 0.0001 for at least three consecutive bins).
 """
+
+
+
+
+
+###BINNING, SMOOTHING AND MAKING Y AND X
+#preprocess spiking data credit goes to this stack answer: https://stackoverflow.com/questions/71003634/applying-a-half-gaussian-filter-to-binned-time-series-data-in-python/71003897#71003897
+#We need to bin the spikes
+import scipy.ndimage
+
+def halfgaussian_kernel1d(sigma, radius):
+    """
+    Computes a 1-D Half-Gaussian convolution kernel.
+    """
+    sigma2 = sigma * sigma
+    x = np.arange(0, radius+1)
+    phi_x = np.exp(-0.5 / sigma2 * x ** 2)
+    phi_x = phi_x / phi_x.sum()
+
+    return phi_x
+
+def halfgaussian_filter1d(input, sigma, axis=-1, output=None,
+                      mode="constant", cval=0.0, truncate=4.0):
+    """
+    Convolves a 1-D Half-Gaussian convolution kernel.
+    """
+    sd = float(sigma)
+    # make the radius of the filter equal to truncate standard deviations
+    lw = int(truncate * sd + 0.5)
+    weights = halfgaussian_kernel1d(sigma, lw)
+    origin = -lw // 2
+    return scipy.ndimage.convolve1d(input, weights, axis, output, mode, cval, origin)
+
+
 
 
 #create the Toeplitz matrix X
