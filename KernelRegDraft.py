@@ -81,8 +81,8 @@ spikes = stein.calldata(session, ['spikes.clusters.npy',
                         steinmetzpath=datapath)
 
 
-def frequency_array(spikeclusterIDs, spikestimes, start_times, end_times, bin_size,
-                    return_meta_data = True, filter_by_quality= [], minquality = 2):
+def frequency_array(session, filepath, bin_size,
+                    return_meta_data = True, filter_by_quality= True, minquality = 2):
     """
     Takes Alyx format .npy files and load them into a numpy array,
     can either give you 
@@ -103,24 +103,46 @@ def frequency_array(spikeclusterIDs, spikestimes, start_times, end_times, bin_si
     corresponding Allen onotlogy data as well as session label
     
     """
-    spikeclusterIDs= spikes['spikesclusters'] #delete after testing
-    filter_by_quality = spikes['clusters_phy_annotation'] #delete after testing
     
-    filter_by_quality = float(filter_by_quality)
-    filter_by_quality= []
-    clusters_idx = pd.Index(np.unique(spikeclusterIDs))
-    clustersfrequency = np.array()
+    def get_and_filter_spikes():
+        spikes = stein.calldata(session, ['spikes.clusters.npy',
+                                  'spikes.times.npy',
+                                  'clusters._phy_annotation.npy'],
+                        steinmetzpath=filepath)
+        
+        spikesclusters = np.array(list(spikes['spikesclusters']))
+        spikestimes = np.array(list(spikes['spikestimes']))
+        clusterquality = np.array(list(spikes['clusters_phy_annotation']))
+        
+        if filter_by_quality:
+            clusterquality = clusterquality >=minquality
+            spikestimes = spikestimes[clusterquality]
+            spikesclusters = spikesclusters[clusterquality]
+        
+        return(spikesclusters, spikestimes )
     
+    clusters, times = get_and_filter_spikes()
+    
+    def bin_spikes_in_trials():
+        
+        
+        #end
+        
+        
+
+    spikesclusters = np.array(list(spikes['spikesclusters'])) #delete after testing
+    spikestimes = np.array(list(spikes['spikestimes'])) 
+   
     #filter out low quality scores only if quality scores are supplied
-    if len(filter_by_quality)>0:
-        filter_by_quality = [int(x) for x in filter_by_quality]
-        is_low = pd.Series(filter_by_quality)
-        is_low = is_low>=miinquality
-        clusters_idx = clusters_idx[is_low]
-        spikeclusterIDs = spikeclusterIDs[is_low]
-    #end if loop
+
     
+    #MAKING BINNED TIME SERIES
+    #1) Identify trial starts 
+
     
+
+    
+
 
         
 df = pd.DataFrame(np.arange(10).reshape(-1, 2), columns=['A', 'B'])   
