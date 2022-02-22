@@ -59,7 +59,7 @@ for session in stein.recording_key():
 # first we want trial times since we are initially only going to look at
 # data withing the trial times, may as well collect the data we need from them
 # for feeding into toeplitz matrix later
-session = list(stein.recording_key())[1]
+
 
 
 trials = stein.calldata(session, ['trials.visualStim_contrastLeft.npy',
@@ -99,6 +99,15 @@ def frequency_array(session, filepath, bin_size,
     
     """
     
+    ##FOR TESTING DELETE AFTERWARDS
+    filepath=datapath
+    session = list(stein.recording_key())[1]
+    return_meta_data = True
+    filter_by_quality= True
+    minquality = 2
+    
+    
+    ##code starts here
     def get_and_filter_spikes():
         """
         calls the spikes datat from the session we are interested in,
@@ -112,17 +121,22 @@ def frequency_array(session, filepath, bin_size,
                                   'clusters._phy_annotation.npy'],
                         steinmetzpath=filepath)
         
-        spikesclusters = np.array(list(spikes['spikesclusters']))
-        spikestimes = np.array(list(spikes['spikestimes']))
-        clusterquality = np.array(list(spikes['clusters_phy_annotation']))
+        spikesclusters = spikes['spikesclusters']
+        spikestimes = spikes['spikestimes']
+        clusterquality = spikes['clusters_phy_annotation']
+        clusters_idx = np.arange(0, len(clusterquality)).reshape(clusterquality.shape)
         
         if filter_by_quality:
-            clusterquality = clusterquality >=minquality
-            spikestimes = spikestimes[clusterquality]
-            spikesclusters = spikesclusters[clusterquality]
-        
+            #finds the clusters in the time series with bad quality (q<2) and removes them
+            #from the series holding when a pike occured and what it's identity was
+            good_clusters = clusters_idx[clusterquality >= minquality] 
+            cluster_mask = np.isin(spikesclusters, good_clusters) #boolean mask
+            spikestimes = spikestimes[cluster_mask] 
+            spikesclusters = spikesclusters[cluster_mask]
+                   
         return(spikesclusters, spikestimes )
     
+    # run above fucntion and get the spikes serieses for this session
     clusters, times = get_and_filter_spikes()
     
     def bin_spikes_in_trials():
@@ -132,10 +146,10 @@ def frequency_array(session, filepath, bin_size,
         to add that to the index
         
         """
-        trialintervals = np.array(trials["trialsintervals"])
+        trialintervals = trials["trialsintervals"]
         #trials starts are trialintervals[, 0]
         #trial ends are trialintervals[, 0]
-        for trial in trailsintervals.shape[0]:
+        for trial in range(0,trialintervals.shape[0]):
             #find out number of step in the trial
             n_steps = ceil((trialintervals[trial,1]-trialintervals[trial,0])/bin_size)
             t_i = trialintervals[trial,0]
@@ -179,6 +193,8 @@ def frequency_array(session, filepath, bin_size,
                     j = j + 1
                 #bin_arr is now ready to be concatenated to trial_arr
                 test = np.concatenate(trial_arr, bin_arr) # this throws an error
+                #I need to fux the types on trials_arr or bin_arr
+                
                 
                 #NOTE ON SMOOTHING
                 #smoothing should be done for each trial, don't run the function
