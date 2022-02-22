@@ -179,6 +179,14 @@ def frequency_array(session, filepath, bin_size,
                     j = j + 1
                 #bin_arr is now ready to be concatenated to trial_arr
                 test = np.concatenate(trial_arr, bin_arr) # this throws an error
+                
+                #NOTE ON SMOOTHING
+                #smoothing should be done for each trial, don't run the function
+                #on from trial start to trial end
+                #I think
+                
+                #So concatenate each trial_frequcncy array after smoothing is what I think should happen
+                
                     
                     
                     
