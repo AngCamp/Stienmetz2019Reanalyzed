@@ -24,6 +24,7 @@ which will be included or written up for description of the workflow.
 import os
 import numpy as np
 import pandas as pd
+from math import ceil
 
 #for ubuntu....
 #cd mnt/c/Users/angus/Desktop/SteinmetzLab/Analysis 
@@ -68,12 +69,6 @@ trials = stein.calldata(session, ['trials.visualStim_contrastLeft.npy',
                                        'trials.intervals.npy'], 
                         steinmetzpath= datapath, propertysearch = False)
      
-trials = pd.DataFrame({'Choice':list(trials['trialsresponse_choice']),
-                       'LeftContrast':list(trials['trialsvisualStim_contrastLeft']),
-                       'RightContrast':list(trials['trialsvisualStim_contrastRight']),
-                       'feedback':list(trials['trialsfeedbackType']),
-                       'trialstart':list(trials['trialsintervals'][:,0]),
-                       'trialend':list(trials['trialsintervals'][:,1])})
 
 spikes = stein.calldata(session, ['spikes.clusters.npy',
                                   'spikes.times.npy',
@@ -105,6 +100,13 @@ def frequency_array(session, filepath, bin_size,
     """
     
     def get_and_filter_spikes():
+        """
+        calls the spikes datat from the session we are interested in,
+        removes the low quality scores, I.e. those listed as 1 
+        steinmetz annotated the kilosorts clusters as 1, 2, or 3 recomended
+        using nothing below a 2
+        -returns 2 numpy arrays one for the clusters 
+        """
         spikes = stein.calldata(session, ['spikes.clusters.npy',
                                   'spikes.times.npy',
                                   'clusters._phy_annotation.npy'],
@@ -124,6 +126,71 @@ def frequency_array(session, filepath, bin_size,
     clusters, times = get_and_filter_spikes()
     
     def bin_spikes_in_trials():
+        """
+        Returns the bhin by bin frequencies of each neuron,
+        first we pull only the clusters that fired, then we use their cluster 
+        to add that to the index
+        
+        """
+        trialintervals = np.array(trials["trialsintervals"])
+        #trials starts are trialintervals[, 0]
+        #trial ends are trialintervals[, 0]
+        for trial in trailsintervals.shape[0]:
+            #find out number of step in the trial
+            n_steps = ceil((trialintervals[trial,1]-trialintervals[trial,0])/bin_size)
+            t_i = trialintervals[trial,0]
+            t_plus_dt = t_i + bin_size
+            trial_arr = np.empty(len(np.unique(clusters)), dtype=float) # will be concatenated
+            
+            for i in n_steps:
+                
+                
+                #bin_arr will be the frequency for this trial, will be added to trail_arr each step and the reset
+                bin_arr = np.zeros(len(np.unique(clusters)), dtype=float) 
+                
+                #this bin will filter our timing and clusters so we can
+                # just work on the slice of spikeclusters corresponding to
+                #each bin step
+                this_bin = np.logical_and(times>=t_i,
+                                          times<=t_plus_dt)
+                
+                #we find the index of the clusters and convert spike counts to hertz
+                (unique, counts) = np.unique(clusters[this_bin], return_counts=True)
+                frequencies = np.asarray((unique, counts/bin_size))
+
+                
+                # double check this step, smoothing should correct it
+                #counts/bin_size gives the moment by moment firing rate
+                #but since it can't take into account every other time step
+                #we can correct this later with smoothing
+                #should we may be include times just before and after trials
+                #so the smoothing calculations won't be clipped?
+                j = 0
+                for neuron in frequencies[0,]:
+                    
+                    #make cluster identiy in frequencies into int so it can be found in clusters_idx
+                    #for adding firirng rate to bin_arr 
+                    neuron = int(neuron) 
+
+                    bin_arr[neuron] = frequencies[1,j] #add the freq in Hz to the vector
+                    print(j)
+                    print(frequencies[1,j])
+                    print(type(bin_arr[neuron]))
+                    j = j + 1
+                #bin_arr is now ready to be concatenated to trial_arr
+                test = np.concatenate(trial_arr, bin_arr) # this throws an error
+                    
+                    
+                    
+                
+                
+                
+                
+                
+            
+
+        
+        
         
         
         #end
