@@ -185,6 +185,7 @@ def frequency_array(session, filepath, bin_size,
     clusters, times, filteredclusters_idx = get_and_filter_spikes()
        
     def bin_spikes_in_trials():
+        
         """
         Returns the bin by bin frequencies of each neuron,
         first we pull only the clusters that fired, then we use their cluster 
@@ -237,17 +238,24 @@ def frequency_array(session, filepath, bin_size,
                     trial_arr = np.hstack([trial_arr, bin_arr])
                 #end of neuron for loop
             #end of i for loop
-            
-            
+
             #transposing and trimming array, might be too early to do this
             trial_arr = trial_arr[:,2:]
             
             #smoothing our firing rates
             trial_arr = halfgaussian_filter1d(input = trial_arr,
                                   sigma = 0.25)
+            
+            #clipping intialization array
+            session_arr = np.hstack([session_arr, trial_arr])
+            
         #end of trial for-loop
-        session_arr = np.hstack([session_arr, trial_arr])
-    session_arr = session_arr[:,2:] # cuts off initialization array from session_arr
+        session_arr = session_arr[:,2:] # cuts off initialization array from session_arr
+    
+        return (session_arr, filteredclusters_idx)
+
+    
+    
     
     #need to be making index of columns as well
     """
