@@ -25,6 +25,7 @@ import os
 import numpy as np
 import pandas as pd
 from math import ceil
+import scipy.ndimage
 
 #for ubuntu....
 #cd mnt/c/Users/angus/Desktop/SteinmetzLab/Analysis 
@@ -75,7 +76,32 @@ spikes = stein.calldata(session, ['spikes.clusters.npy',
                                   'clusters._phy_annotation.npy'],
                         steinmetzpath=datapath)
 
+#For smoothing we make halfguassian_kernel1d and halfgaussian_filter1d
+def halfgaussian_kernel1d(sigma, radius):
+    """
+    Computes a 1-D Half-Gaussian convolution kernel.
+    """
+    sigma2 = sigma * sigma
+    x = np.arange(0, radius+1)
+    phi_x = np.exp(-0.5 / sigma2 * x ** 2)
+    phi_x = phi_x / phi_x.sum()
 
+    return phi_x
+
+def halfgaussian_filter1d(input, sigma, axis=-1, output=None,
+                      mode="constant", cval=0.0, truncate=4.0):
+    """
+    Convolves a 1-D Half-Gaussian convolution kernel.
+    """
+    sd = float(sigma)
+    # make the radius of the filter equal to truncate standard deviations
+    lw = int(truncate * sd + 0.5)
+    weights = halfgaussian_kernel1d(sigma, lw)
+    origin = -lw // 2
+    return scipy.ndimage.convolve1d(input, weights, axis, output, mode, cval, origin)
+
+#now we can make the function that will generate our Y matrix, the firing rates to predict
+#based on our kernels
 def frequency_array(session, filepath, bin_size,
                     return_meta_data = True, filter_by_quality= True, minquality = 2):
     """
@@ -105,6 +131,7 @@ def frequency_array(session, filepath, bin_size,
     return_meta_data = True
     filter_by_quality= True
     minquality = 2
+    bin_size = 0.005 # in seconds
     
     
     ##code starts here
@@ -133,12 +160,13 @@ def frequency_array(session, filepath, bin_size,
             cluster_mask = np.isin(spikesclusters, good_clusters) #boolean mask
             spikestimes = spikestimes[cluster_mask] 
             spikesclusters = spikesclusters[cluster_mask]
-                   
-        return(spikesclusters, spikestimes )
+            clusters_idx = np.unique(spikesclusters)
+            
+        return(spikesclusters, spikestimes, clusters_idx )
     
     # run above fucntion and get the spikes serieses for this session
-    clusters, times = get_and_filter_spikes()
-    
+    clusters, times, filteredclusters_idx = get_and_filter_spikes()
+       
     def bin_spikes_in_trials():
         """
         Returns the bhin by bin frequencies of each neuron,
@@ -157,8 +185,6 @@ def frequency_array(session, filepath, bin_size,
             trial_arr = np.empty(len(np.unique(clusters)), dtype=float) # will be concatenated
             
             for i in n_steps:
-                
-                
                 #bin_arr will be the frequency for this trial, will be added to trail_arr each step and the reset
                 bin_arr = np.zeros(len(np.unique(clusters)), dtype=float) 
                 
@@ -185,16 +211,17 @@ def frequency_array(session, filepath, bin_size,
                     #make cluster identiy in frequencies into int so it can be found in clusters_idx
                     #for adding firirng rate to bin_arr 
                     neuron = int(neuron) 
-
-                    bin_arr[neuron] = frequencies[1,j] #add the freq in Hz to the vector
-                    print(j)
-                    print(frequencies[1,j])
-                    print(type(bin_arr[neuron]))
+                    match_idx = neuron==filteredclusters_idx
+                    bin_arr[match_idx] = frequencies[1,j] #add the freq in Hz to the vector
+                    #bin_arr is now ready to be concatenated to trial_arr
+                    trial_arr = np.vstack([trial_arr, bin_arr])
                     j = j + 1
-                #bin_arr is now ready to be concatenated to trial_arr
-                test = np.concatenate(trial_arr, bin_arr) # this throws an error
-                #I need to fux the types on trials_arr or bin_arr
+                    #end of this for loop
                 
+                #transposing and trimming array, might be too early to do this
+                trial_arr = trial_arr.T[:,1:]
+                
+                #time to smooth
                 
                 #NOTE ON SMOOTHING
                 #smoothing should be done for each trial, don't run the function
@@ -203,8 +230,11 @@ def frequency_array(session, filepath, bin_size,
                 
                 #So concatenate each trial_frequcncy array after smoothing is what I think should happen
                 
-                    
-                    
+            """
+            FROM Methods - KERNEL REGRESSION ANALYSIS
+            'For the current study, only visual stimulus onset and wheel 
+            movement onset kernels were required,'              
+            """      
                     
                 
                 
