@@ -192,7 +192,7 @@ def frequency_array(session, filepath, bin_size,
         
         """
         #this will be our output
-        session_arr = np.empty(len(np.unique(clusters)), dtype=float)
+        session_arr = np.zeros([2,len(np.unique(clusters))], dtype=float)
         
         trialintervals = trials["trialsintervals"]
         #trials starts are trialintervals[, 0]
@@ -202,7 +202,7 @@ def frequency_array(session, filepath, bin_size,
             n_steps = ceil((trialintervals[trial,1]-trialintervals[trial,0])/bin_size)
             t_i = trialintervals[trial,0]
             t_plus_dt = t_i + bin_size
-            trial_arr = np.empty(len(np.unique(clusters)), dtype=float) # will be concatenated
+            trial_arr = np.zeros([2,len(np.unique(clusters))], dtype=float) # will be concatenated
             
             for i in range(0,n_steps):
                 #bin_arr will be the frequency for this trial, will be added to trail_arr each step and the reset
@@ -234,19 +234,56 @@ def frequency_array(session, filepath, bin_size,
                     bin_arr[match_idx] = frequencies[1,j] #add the freq in Hz to the vector
                     #bin_arr is now ready to be concatenated to trial_arr
                     j = j + 1
-                    trial_arr = np.vstack([trial_arr, bin_arr])
+                    trial_arr = np.hstack([trial_arr, bin_arr])
                 #end of neuron for loop
             #end of i for loop
             
             
             #transposing and trimming array, might be too early to do this
-            trial_arr = trial_arr.T[:,1:]
+            trial_arr = trial_arr[:,2:]
             
             #smoothing our firing rates
             trial_arr = halfgaussian_filter1d(input = trial_arr,
                                   sigma = 0.25)
         #end of trial for-loop
-               
+        session_arr = np.hstack([session_arr, trial_arr])
+    session_arr = session_arr[:,2:] # cuts off initialization array from session_arr
+    
+    #need to be making index of columns as well
+    """
+    FINDING THE CHANNELS ABA-Ontollogy Location
+    
+    def fetch_channel_locations(session):
+    
+    #finds a session and returns the locations of its channels 
+    
+    locations = stein.calldata(session, ['channels.brainLocation.tsv','channels.probe.npy'], 
+                        steinmetzpath= datapath, propertysearch = False) 
+    locations = locations['channelsbrainLocation']
+    locations = pd.Series(locations['allen_ontology'])
+    
+    
+    #search
+    locations = stein.calldata(tate, ['clusters.peakChannel.npy',
+                                      'channels.brainLocation.tsv',
+                                      'channels.probe.npy'], 
+                        steinmetzpath= datapath, propertysearch = False)
+    
+    #give channel(on probe) to associate to cluster
+    clusterpeaks = locations['clusterspeakChannel'] 
+    
+    #probe cluster was recorded from
+    clusterprobe = tatumclusters['clustersprobes'] 
+    
+    #df with associated allen ontology
+    brainLocation = locations['channelsbrainLocation']
+    
+    The goal is to store it all in a single string for each
+    Session_cluster#_in_the_ABAlocation                         
+    Example: Forssmann_2017-11-01_Cluster1738_in_the_CA1
+    
+    """
+    
             """
             FROM Methods - KERNEL REGRESSION ANALYSIS
             'For the current study, only visual stimulus onset and wheel 
