@@ -61,6 +61,20 @@ for session in stein.recording_key():
 # data withing the trial times, may as well collect the data we need from them
 # for feeding into toeplitz matrix later
 
+"""
+A NOTE ON THE TIMESTAMP FILES AND LFP DATA
+
+So each session contains a few files named like this:
+    'Forssmann_2017-11-01_K1_g0_t0.imec.lf.timestamps.npy'
+    
+    These are the time base offsets for the probes internal clocks.  In order
+to align the time base here for the events occuring in the trials to the LFP
+you will need to account for these.  They bear no relevance for the spikes,
+stimuli, movement etc etc these are set to the same time base which starts 
+prior to the begining of the trials.
+
+"""
+Lstim = trials['trialsvisualStim_contrastLeft']
 
 
 trials = stein.calldata(session, ['trials.visualStim_contrastLeft.npy',
@@ -143,6 +157,9 @@ def frequency_array(session, filepath, bin_size,
         using nothing below a 2
         -returns 2 numpy arrays one for the clusters 
         """
+        
+        #We call the relvant objects for clusters (neurons) identity of a firing
+        #the time at which a firing occured and the quality of the recording
         spikes = stein.calldata(session, ['spikes.clusters.npy',
                                   'spikes.times.npy',
                                   'clusters._phy_annotation.npy'],
@@ -169,11 +186,14 @@ def frequency_array(session, filepath, bin_size,
        
     def bin_spikes_in_trials():
         """
-        Returns the bhin by bin frequencies of each neuron,
+        Returns the bin by bin frequencies of each neuron,
         first we pull only the clusters that fired, then we use their cluster 
         to add that to the index
         
         """
+        #this will be our output
+        session_arr = np.empty(len(np.unique(clusters)), dtype=float)
+        
         trialintervals = trials["trialsintervals"]
         #trials starts are trialintervals[, 0]
         #trial ends are trialintervals[, 0]
@@ -184,7 +204,7 @@ def frequency_array(session, filepath, bin_size,
             t_plus_dt = t_i + bin_size
             trial_arr = np.empty(len(np.unique(clusters)), dtype=float) # will be concatenated
             
-            for i in n_steps:
+            for i in range(0,n_steps):
                 #bin_arr will be the frequency for this trial, will be added to trail_arr each step and the reset
                 bin_arr = np.zeros(len(np.unique(clusters)), dtype=float) 
                 
@@ -210,26 +230,23 @@ def frequency_array(session, filepath, bin_size,
                     
                     #make cluster identiy in frequencies into int so it can be found in clusters_idx
                     #for adding firirng rate to bin_arr 
-                    neuron = int(neuron) 
-                    match_idx = neuron==filteredclusters_idx
+                    match_idx = int(neuron)==filteredclusters_idx
                     bin_arr[match_idx] = frequencies[1,j] #add the freq in Hz to the vector
                     #bin_arr is now ready to be concatenated to trial_arr
-                    trial_arr = np.vstack([trial_arr, bin_arr])
                     j = j + 1
-                    #end of this for loop
-                
-                #transposing and trimming array, might be too early to do this
-                trial_arr = trial_arr.T[:,1:]
-                
-                #time to smooth
-                
-                #NOTE ON SMOOTHING
-                #smoothing should be done for each trial, don't run the function
-                #on from trial start to trial end
-                #I think
-                
-                #So concatenate each trial_frequcncy array after smoothing is what I think should happen
-                
+                    trial_arr = np.vstack([trial_arr, bin_arr])
+                #end of neuron for loop
+            #end of i for loop
+            
+            
+            #transposing and trimming array, might be too early to do this
+            trial_arr = trial_arr.T[:,1:]
+            
+            #smoothing our firing rates
+            trial_arr = halfgaussian_filter1d(input = trial_arr,
+                                  sigma = 0.25)
+        #end of trial for-loop
+               
             """
             FROM Methods - KERNEL REGRESSION ANALYSIS
             'For the current study, only visual stimulus onset and wheel 
@@ -237,7 +254,41 @@ def frequency_array(session, filepath, bin_size,
             """      
                     
                 
-                
+    def stats_filters():
+        """
+        Here we test for the 6 critieria used in the publication.
+        
+        According to Steinmetz et al. (2019) neurons were further tested before
+        inclusion in the kernel regression...
+        '...a set of six statistical tests were used to detect changes in activity 
+        during various task epochs and conditions: 
+            (1) Wilcoxon sign-rank test between trial firing rate (rate of 
+        spikes between stimulus onset and 400 ms post-stimulus) and baseline
+        rate (defined in period −0.2 to 0 s relative to stimulus onset on each 
+        trial); 
+            (2) sign-rank test between stimulus-driven rate (firing rate 
+        between 0.05 and 0.15 s after stimulus onset) and baseline rate; 
+            (3) sign-rank test between pre-movement rates (−0.1 to 0.05 s 
+       relative to movement onset) and baseline rate (for trials with movements);
+            (4) Wilcoxon rank-sum test between pre-movement rates on left choice 
+        trials and those on right choice trials; 
+            (5) sign-rank test between post-movement rates (−0.05 to 0.2 s 
+        relative to movement onset) and baseline rate; 
+            (6) rank–sum test between post-reward rates (0 to 0.15 s relative 
+        to reward delivery for correct NoGos) and baseline rates. 
+        
+        A neuron was considered active during the task, or to have detectable 
+        modulation during some part of the task, if any of the P values on 
+        these tests were below a Bonferroni-corrected alpha value (0.05/6 = 0.0083). 
+        
+        However, because the tests were coarse and would be relatively insensitive
+        to neurons with transient activity, a looser threshold was used to 
+        determine the neurons included for statistical analyses (Figs. 3–5): 
+        if any of the first four tests (that is, those concerning the period 
+        between stimulus onset and movement onset) had a P value less than 0.05.'
+        
+        
+        """
                 
                 
                 
