@@ -74,22 +74,6 @@ stimuli, movement etc etc these are set to the same time base which starts
 prior to the begining of the trials.
 
 """
-Lstim = trials['trialsvisualStim_contrastLeft']
-
-
-trials = stein.calldata(session, ['trials.visualStim_contrastLeft.npy',
-                                       'trials.visualStim_contrastRight.npy',
-                                       'trials.response_choice.npy',
-                                       'trials.feedbackType.npy',
-                                       'trials.intervals.npy'], 
-                        steinmetzpath= datapath, propertysearch = False)
-     
-
-spikes = stein.calldata(session, ['spikes.clusters.npy',
-                                  'spikes.times.npy',
-                                  'clusters._phy_annotation.npy'],
-                        steinmetzpath=datapath)
-
 #For smoothing we make halfguassian_kernel1d and halfgaussian_filter1d
 def halfgaussian_kernel1d(sigma, radius):
     """
@@ -113,6 +97,8 @@ def halfgaussian_filter1d(input, sigma, axis=-1, output=None,
     weights = halfgaussian_kernel1d(sigma, lw)
     origin = -lw // 2
     return scipy.ndimage.convolve1d(input, weights, axis, output, mode, cval, origin)
+
+
 
 #now we can make the function that will generate our Y matrix, the firing rates to predict
 #based on our kernels
@@ -140,13 +126,14 @@ def frequency_array(session, filepath, bin_size,
     """
     
     ##FOR TESTING DELETE AFTERWARDS
+
     filepath=datapath
-    session = list(stein.recording_key())[1]
+    session = allsessions[1]
     return_meta_data = True
     filter_by_quality= True
     minquality = 2
     bin_size = 0.005 # in seconds
-    
+
     
     ##code starts here
     def get_and_filter_spikes():
@@ -165,9 +152,12 @@ def frequency_array(session, filepath, bin_size,
                                   'clusters._phy_annotation.npy'],
                         steinmetzpath=filepath)
         
-        spikesclusters = spikes['spikesclusters']
-        spikestimes = spikes['spikestimes']
-        clusterquality = spikes['clusters_phy_annotation']
+        
+        
+        spikesclusters = spikes['spikesclusters'] #the idneity in sequence of 
+        #each cluster, match it with spikestimes to get timing and identity info
+        spikestimes = spikes['spikestimes'] #times corresponding to clusters firing
+        clusterquality = spikes['clusters_phy_annotation'] #quality rating of clsuters
         clusters_idx = np.arange(0, len(clusterquality)).reshape(clusterquality.shape)
         
         if filter_by_quality:
@@ -181,82 +171,116 @@ def frequency_array(session, filepath, bin_size,
             
         return(spikesclusters, spikestimes, clusters_idx )
     
-    # run above fucntion and get the spikes serieses for this session
+    # run above function and get the spikes serieses for this session
     clusters, times, filteredclusters_idx = get_and_filter_spikes()
-       
-    def bin_spikes_in_trials():
-        
-        """
+    
+    
+    ######FOR TESTING PURPOSES WE WILL RESTRICT THIS TO ONE NEURON
+
+    """
+    This shows the highest counts are, so I can play wiht somethign with a lot fo activity
+    determined by looking at times and trial_intervals that 122000-133000 were the
+    indecies coresponding to trial 1 at ~39.5s to 43s
+        values, counts = np.unique(clusters[122000:133000], return_counts = True)
+    counts[np.where(counts == max(counts))]
+Out[24]: array([202518], dtype=int64)
+
+values[np.where(counts == max(counts))]
+Out[25]: array([570])
+    
+    """
+    ######again still debugging
+    fiveseventy_idx = np.where((clusters == 570) | (clusters == 776 ))
+    clusters = clusters[fiveseventy_idx]
+    times = times[fiveseventy_idx]  
+    filteredclusters_idx = np.array([570,776])
+    """
         Returns the bin by bin frequencies of each neuron,
         first we pull only the clusters that fired, then we use their cluster 
         to add that to the index
         
-        """
-        #this will be our output
-        session_arr = np.zeros([2,len(np.unique(clusters))], dtype=float)
+    """
+    #######code resumes here
+    
+    
+    #getting the timing information of when trials begin and end
+    trialsintervals = stein.calldata(session, ['trials.intervals.npy'],
+                steinmetzpath=filepath)
+    trialintervals = trialsintervals["trialsintervals"]
+    
+    #this will be our output
+    session_arr = np.zeros([2,len(np.unique(clusters))], dtype=float)
+    
+    #trials starts are trialintervals[, 0]
+    #trial ends are trialintervals[, 0]
+    for trial in range(0,trialintervals.shape[0]):
+        #find out number of step in the trial
+        n_steps = ceil((trialintervals[trial,1]-trialintervals[trial,0])/bin_size)
+        t_i = trialintervals[trial,0]
+        t_plus_dt = t_i + bin_size
+        trial_arr = np.zeros([2,len(np.unique(clusters))], dtype=float) # will be concatenated
         
-        trialintervals = trials["trialsintervals"]
-        #trials starts are trialintervals[, 0]
-        #trial ends are trialintervals[, 0]
-        for trial in range(0,trialintervals.shape[0]):
-            #find out number of step in the trial
-            n_steps = ceil((trialintervals[trial,1]-trialintervals[trial,0])/bin_size)
-            t_i = trialintervals[trial,0]
-            t_plus_dt = t_i + bin_size
-            trial_arr = np.zeros([2,len(np.unique(clusters))], dtype=float) # will be concatenated
+        for i in range(0,n_steps):
+            #bin_arr will be the frequency for this trial, will be added to trail_arr each step and the reset
+            bin_arr = np.zeros(len(np.unique(clusters)), dtype=float) 
             
-            for i in range(0,n_steps):
-                #bin_arr will be the frequency for this trial, will be added to trail_arr each step and the reset
-                bin_arr = np.zeros(len(np.unique(clusters)), dtype=float) 
-                
-                #this bin will filter our timing and clusters so we can
-                # just work on the slice of spikeclusters corresponding to
-                #each bin step
-                this_bin = np.logical_and(times>=t_i,
-                                          times<=t_plus_dt)
-                
-                #we find the index of the clusters and convert spike counts to hertz
-                (unique, counts) = np.unique(clusters[this_bin], return_counts=True)
-                frequencies = np.asarray((unique, counts/bin_size))
+            #this bin will filter our timing and clusters so we can
+            # just work on the slice of spikeclusters corresponding to
+            #each bin step
+            this_bin = np.logical_and(times>=t_i,
+                                      times<=t_plus_dt)
+            
+            #we find the index of the clusters and convert spike counts to hertz
+            (unique, counts) = np.unique(clusters[this_bin], return_counts=True)
+            frequencies = np.asarray((unique, counts/bin_size))
 
+            
+            j = 0 #initializing and index to move down frequncy 2d frequency values array with
+            for neuron in frequencies[0,]:
+
+                ### !!!!
+                ####!!!! there is an error in this loop
+                ## !!!!!
+
+                #make cluster identiy in frequencies into int so it can be found in clusters_idx
+                #for adding firirng rate to bin_arr 
+                match_idx = int(neuron)==filteredclusters_idx #this evaluats to True,
                 
-                # double check this step, smoothing should correct it
-                #counts/bin_size gives the moment by moment firing rate
-                #but since it can't take into account every other time step
-                #we can correct this later with smoothing
-                #should we may be include times just before and after trials
-                #so the smoothing calculations won't be clipped?
-                j = 0
-                for neuron in frequencies[0,]:
-                    
-                    #make cluster identiy in frequencies into int so it can be found in clusters_idx
-                    #for adding firirng rate to bin_arr 
-                    match_idx = int(neuron)==filteredclusters_idx
-                    bin_arr[match_idx] = frequencies[1,j] #add the freq in Hz to the vector
-                    #bin_arr is now ready to be concatenated to trial_arr
-                    j = j + 1
-                    trial_arr = np.hstack([trial_arr, bin_arr])
-                #end of neuron for loop
-            #end of i for loop
+                
+                bin_arr[match_idx] = frequencies[1,j] #add the freq in Hz to the vector
+                #bin_arr is now ready to be concatenated to trial_arr
 
-            #transposing and trimming array, might be too early to do this
-            trial_arr = trial_arr[:,2:]
-            
-            #smoothing our firing rates
-            trial_arr = halfgaussian_filter1d(input = trial_arr,
-                                  sigma = 0.25)
-            
-            #clipping intialization array
-            session_arr = np.hstack([session_arr, trial_arr])
-            
-        #end of trial for-loop
-        session_arr = session_arr[:,2:] # cuts off initialization array from session_arr
-    
-        return (session_arr, filteredclusters_idx)
+                j = j + 1
+                trial_arr = np.column_stack([trial_arr, bin_arr])
+            #end of neuron for-loop
+        #end of i for-loop
 
+        #trimming array, then smoothing our firing rates
+        trial_arr = trial_arr[:,2:]
+        trial_arr = halfgaussian_filter1d(input = trial_arr,
+                              sigma = 0.25)
+        
+        #clipping intialization array
+        session_arr = np.column_stack([session_arr, trial_arr])
+        
+    #end of trial for-loop
+    session_arr = session_arr[:,2:] # cuts off initialization array from session_arr
     
-    
-    
+    return (session_arr, filteredclusters_idx)
+
+
+sesh = allsessions[1]
+#Run this on a for loop
+
+#tatum_arrya is the firing rates after smoothing in hz
+# index is the clusters original index
+tatum_array, index = frequency_array(sesh, datapath, bin_size = 0.005,
+                    return_meta_data = True, filter_by_quality= True, minquality = 2)    
+
+#the model is calculated neuron by neuron using a reduced representation 
+# across 
+
+
     #need to be making index of columns as well
     """
     FINDING THE CHANNELS ABA-Ontollogy Location
@@ -299,8 +323,45 @@ def frequency_array(session, filepath, bin_size,
             """      
                     
                 
-    def stats_filters():
-        """
+def stats_filters():
+    
+    """
+        Here we test for the 6 critieria used in the publication.
+        
+        According to Steinmetz et al. (2019) neurons were further tested before
+        inclusion in the kernel regression...
+        '...a set of six statistical tests were used to detect changes in activity 
+        during various task epochs and conditions: 
+            (1) Wilcoxon sign-rank test between trial firing rate (rate of 
+        spikes between stimulus onset and 400 ms post-stimulus) and baseline
+        rate (defined in period −0.2 to 0 s relative to stimulus onset on each 
+        trial); 
+            (2) sign-rank test between stimulus-driven rate (firing rate 
+        between 0.05 and 0.15 s after stimulus onset) and baseline rate; 
+            (3) sign-rank test between pre-movement rates (−0.1 to 0.05 s 
+       relative to movement onset) and baseline rate (for trials with movements);
+            (4) Wilcoxon rank-sum test between pre-movement rates on left choice 
+        trials and those on right choice trials; 
+            (5) sign-rank test between post-movement rates (−0.05 to 0.2 s 
+        relative to movement onset) and baseline rate; 
+            (6) rank–sum test between post-reward rates (0 to 0.15 s relative 
+        to reward delivery for correct NoGos) and baseline rates. 
+        
+        A neuron was considered active during the task, or to have detectable 
+        modulation during some part of the task, if any of the P values on 
+        these tests were below a Bonferroni-corrected alpha value (0.05/6 = 0.0083). 
+        
+        However, because the tests were coarse and would be relatively insensitive
+        to neurons with transient activity, a looser threshold was used to 
+        determine the neurons included for statistical analyses (Figs. 3–5): 
+        if any of the first four tests (that is, those concerning the period 
+        between stimulus onset and movement onset) had a P value less than 0.05.'
+       
+    """
+    
+    
+    
+    """
         Here we test for the 6 critieria used in the publication.
         
         According to Steinmetz et al. (2019) neurons were further tested before
@@ -333,7 +394,7 @@ def frequency_array(session, filepath, bin_size,
         between stimulus onset and movement onset) had a P value less than 0.05.'
         
         
-        """
+    """
                 
                 
                 
