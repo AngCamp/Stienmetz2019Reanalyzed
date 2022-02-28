@@ -26,6 +26,12 @@ import numpy as np
 import pandas as pd
 from math import ceil
 import scipy.ndimage
+import timeit #for testing and tracking run times
+
+start = timeit.timeit()
+
+end = timeit.timeit()
+print(end - start)
 
 #for ubuntu....
 #cd mnt/c/Users/angus/Desktop/SteinmetzLab/Analysis 
@@ -102,8 +108,8 @@ def halfgaussian_filter1d(input, sigma, axis=-1, output=None,
 
 #now we can make the function that will generate our Y matrix, the firing rates to predict
 #based on our kernels
-def frequency_array(session, filepath, bin_size,
-                    return_meta_data = True, filter_by_quality= True, minquality = 2):
+def frequency_array(session, filepath, bin_size, filter_by_quality= True, minquality = 2,
+                    restricted_neuron_test = False):
     """
     Takes Alyx format .npy files and load them into a numpy array,
     can either give you 
@@ -125,17 +131,6 @@ def frequency_array(session, filepath, bin_size,
     
     """
     
-    ##FOR TESTING DELETE AFTERWARDS
-
-    filepath=datapath
-    session = allsessions[1]
-    return_meta_data = True
-    filter_by_quality= True
-    minquality = 2
-    bin_size = 0.005 # in seconds
-
-    
-    ##code starts here
     def get_and_filter_spikes():
         """
         calls the spikes datat from the session we are interested in,
@@ -176,31 +171,20 @@ def frequency_array(session, filepath, bin_size,
     
     
     ######FOR TESTING PURPOSES WE WILL RESTRICT THIS TO ONE NEURON
-
-    """
-    This shows the highest counts are, so I can play wiht somethign with a lot fo activity
-    determined by looking at times and trial_intervals that 122000-133000 were the
-    indecies coresponding to trial 1 at ~39.5s to 43s
-        values, counts = np.unique(clusters[122000:133000], return_counts = True)
-    counts[np.where(counts == max(counts))]
-Out[24]: array([202518], dtype=int64)
-
-values[np.where(counts == max(counts))]
-Out[25]: array([570])
-    
-    """
-    ######again still debugging
-    fiveseventy_idx = np.where((clusters == 570) | (clusters == 776 ))
-    clusters = clusters[fiveseventy_idx]
-    times = times[fiveseventy_idx]  
-    filteredclusters_idx = np.array([570,776])
-    """
-        Returns the bin by bin frequencies of each neuron,
-        first we pull only the clusters that fired, then we use their cluster 
-        to add that to the index
+    if restricted_neuron_test:
+        #this restricts it to two neurons higly active in trial one of 'Muller_2017-01-08'
+        #assumes sesh = allsessions[1]
+        filteredclusters_idx = filteredclusters_idx[0:10]
+        restricted_idx = np.isin(clusters, filteredclusters_idx)
+        clusters = clusters[restricted_idx]
+        times = times[restricted_idx]  
+        """
+        Takes first ten values that survive quality control 
         
-    """
-    #######code resumes here
+        """
+    #end of if-statement for restricted neuron
+    ######### END OF TESTING CODE AND 
+
     
     
     #getting the timing information of when trials begin and end
@@ -209,7 +193,7 @@ Out[25]: array([570])
     trialintervals = trialsintervals["trialsintervals"]
     
     #this will be our output
-    session_arr = np.zeros([2,len(np.unique(clusters))], dtype=float)
+    session_arr = np.zeros([len(np.unique(clusters)),2], dtype=float)
     
     #trials starts are trialintervals[, 0]
     #trial ends are trialintervals[, 0]
@@ -218,7 +202,7 @@ Out[25]: array([570])
         n_steps = ceil((trialintervals[trial,1]-trialintervals[trial,0])/bin_size)
         t_i = trialintervals[trial,0]
         t_plus_dt = t_i + bin_size
-        trial_arr = np.zeros([2,len(np.unique(clusters))], dtype=float) # will be concatenated
+        trial_arr = np.zeros([len(np.unique(clusters)),2], dtype=float) # will be concatenated
         
         for i in range(0,n_steps):
             #bin_arr will be the frequency for this trial, will be added to trail_arr each step and the reset
@@ -269,13 +253,22 @@ Out[25]: array([570])
     return (session_arr, filteredclusters_idx)
 
 
-sesh = allsessions[1]
+sesh = 'Muller_2017-01-07'
 #Run this on a for loop
 
 #tatum_arrya is the firing rates after smoothing in hz
-# index is the clusters original index
-tatum_array, index = frequency_array(sesh, datapath, bin_size = 0.005,
-                    return_meta_data = True, filter_by_quality= True, minquality = 2)    
+# index is the clusters original index also chekcing executuion time
+
+start = timeit.timeit()#tracking run time
+muller_array, index = frequency_array(sesh, datapath, 
+                                     bin_size = 0.005,
+                                     filter_by_quality= True, 
+                                     minquality = 2,
+                                     restricted_neuron_test = True) # remove this after testing   
+end = timeit.timeit() #tracking runtime
+print(end - start) #RUNTIME
+
+
 
 #the model is calculated neuron by neuron using a reduced representation 
 # across 
