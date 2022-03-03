@@ -27,6 +27,7 @@ import pandas as pd
 from math import ceil
 import scipy.ndimage
 import timeit #for testing and tracking run times
+import scipy.stats 
 
 start = timeit.timeit()
 
@@ -56,12 +57,7 @@ so in general the neurons with _phy_annotation>=2 are the ones that should be in
 
 #when querrying the clusters data we can apply the quality score criteria
 
-allsessions = list(stein.recording_key())
-datapath = os.fspath(r'C:\Users\angus\Desktop\SteinmetzLab\9598406\spikeAndBehavioralData\allData')
 
-for session in stein.recording_key():
-    print(session)
-    #to be filled with criteria bellow
 
 # first we want trial times since we are initially only going to look at
 # data withing the trial times, may as well collect the data we need from them
@@ -80,6 +76,275 @@ stimuli, movement etc etc these are set to the same time base which starts
 prior to the begining of the trials.
 
 """
+
+def stats_filter(session, threshold):    
+    """
+        Here we test for the first 4 critieria used in the publication, basically
+        if a neurons passes these at a threshold of 0.05.  Despite doing 4 tests
+        a neurons transientyl firing would be excluded so this threshold was
+        chosen instead.
+        
+        We autopass neurons that passed an earlier test.
+        
+        According to Steinmetz et al. (2019) neurons were further tested before
+        inclusion in the kernel regression...
+        '...a set of six statistical tests were used to detect changes in activity 
+        during various task epochs and conditions: 
+        """
+        
+        fetched_objects =stein.calldata(session,['spikes.clusters.npy',
+                                  'spikes.times.npy',
+                                  'clusters._phy_annotation.npy',
+                                  'trials.visualStim_times.npy',
+                                  'trials.intervals.npy',
+                                  'wheelMoves.types.npy',
+                                  'wheelMoves.intervals.npy'])
+        datapath = os.fspath(r'C:\Users\angus\Desktop\SteinmetzLab\9598406\spikeAndBehavioralData\allData')
+
+        fetched_objects =stein.calldata(recording = "Theiler_2017-10-11",
+                                        list_of_data = ['spikes.clusters.npy',
+                                                        'spikes.times.npy',
+                                                        'clusters._phy_annotation.npy',
+                                                        'trials.visualStim_times.npy',
+                                                        'trials.intervals.npy',
+                                                        'trials.included.npy',
+                                                        'trials.response_times.npy',
+                                                        'trials.response_choice.npy'],
+                                        steinmetzpath = datapath)
+        
+        #Filtering by quality first
+        spikesclusters = fetched_objects['spikesclusters'] #the idneity in sequence of 
+        #each cluster, match it with spikestimes to get timing and identity info
+        spikestimes = fetched_objects['spikestimes'] #times corresponding to clusters firing
+        clusterquality = fetched_objects['clusters_phy_annotation'] #quality rating of clsuters
+        clusters_idx = np.arange(0, len(clusterquality)).reshape(clusterquality.shape)
+        
+        #Getting spike identiy and times and filtering out low quality
+        good_clusters = clusters_idx[clusterquality >= 2] 
+        cluster_mask = np.isin(spikesclusters, good_clusters) #boolean mask
+        spikestimes = spikestimes[cluster_mask] 
+        spikesclusters = spikesclusters[cluster_mask]
+        clusters_idx = np.unique(spikesclusters)
+        
+        #trials to be included 
+        trialsintervals = fetched_objects["trialsintervals"]
+        #wheter or not a trial was included based on engagement, logical 
+        trialsincluded = fetched_objects["trialsincluded"]
+        #filter trialsintervals by trialsincluded reshape prevents indexing error
+        trialsintervals = trialsintervals[trialsincluded.reshape(trialsintervals.shape[0]),:]
+        
+        """
+            (1) Wilcoxon sign-rank test between trial firing rate (rate of 
+        spikes between stimulus onset and 400 ms post-stimulus) and baseline
+        rate (defined in period −0.2 to 0 s relative to stimulus onset on each 
+        trial); 
+        """
+        stimOn = fetched_objects['trialsvisualStim_times']
+        stimOn = stimOn[trialsincluded]
+        
+        stats_filter = np.zeros((1,len(clusters_idx)), dtype = bool)
+        
+        pvals = []
+        for cluster in clusters_idx:
+            baseline = []
+            trialrate = []
+            this_clusters_spikes = spikestimes[np.isin(spikesclusters, cluster)]
+            for trial in range(0, trialsintervals.shape[0]):
+                #first we make the baserate
+                begin = stimOn[trial] - 0.2
+                end = stimOn[trial]
+                rate = sum(np.logical_and(this_clusters_spikes>=begin, this_clusters_spikes<=end))
+                rate= rate/(begin-end)
+                baseline.append(rate)
+                
+                #now we do the stimulus onset rate
+                begin = stimOn[trial]
+                end = stimOn[trial] + 0.4
+                rate = sum(np.logical_and(this_clusters_spikes>=begin, this_clusters_spikes<=end))
+                rate= rate/(begin-end)
+                trialrate.append(rate)
+            #end of trial for loop
+            if sum(trialrate+baseline)==0:
+                pvals.append(1)
+            else:
+                pvals.append(scipy.stats.wilcoxon(x=baseline,y = trialrate)[1])
+        #end of cluster for loop
+                
+        passed_tests = np.array(pvals)<0.05
+
+        """
+            (2) sign-rank test between stimulus-driven rate (firing rate 
+        between 0.05 and 0.15 s after stimulus onset) and baseline rate; 
+        """
+        #this chunk runs fine
+        
+        i = 0
+        pvals = []
+        for i in range(0, len(clusters_idx)):
+            cluster = clusters_idx[i]
+            this_clusters_spikes = spikestimes[np.isin(spikesclusters, cluster)]
+            if passed_tests[i]:
+                pvals.appen(0) #auto pass for neurons that passed one previous tests
+            else:
+                baseline = []
+                trialrate = []
+                this_clusters_spikes = spikestimes[np.isin(spikesclusters, cluster)]
+                for trial in range(0, trialsintervals.shape[0]):
+                    #first we make the baserate
+                    begin = stimOn[trial]-0.2
+                    end = stimOn[trial]
+                    rate = sum(np.logical_and(this_clusters_spikes>=begin, this_clusters_spikes<=end))
+                    rate = rate/(begin-end)
+                    baseline.append(rate)
+                    
+                    #now we do the stimulus onset rate
+                    begin = stimOn[trial] + 0.05
+                    end = stimOn[trial] + 0.15
+                    rate = sum(np.logical_and(this_clusters_spikes>=begin, this_clusters_spikes<=end))
+                    rate=rate/(begin-end)
+                    trialrate.append(rate)
+                #end of trial for loop
+                if sum(trialrate+baseline)==0:
+                    pvals.append(1)
+                else:
+                    pvals.append(scipy.stats.wilcoxon(x=baseline,y = trialrate)[1])
+        #end of cluster for loop
+        passed_tests = np.array(pvals)<0.05
+        
+        """
+            (3) sign-rank test between pre-movement rates (−0.1 to 0.05 s 
+       relative to movement onset) and baseline rate (for trials with movements);
+       """
+       #passed tests this is working
+       i = 0
+       responsechoice = fetched_objects['trialsresponse_choice']
+       responsetimes = fetched_objects['trialsresponse_times']
+       responsechoice = responsechoice[trialsincluded]
+       responsetimes = responsetimes[trialsincluded]
+       moved = np.array(responsechoice, dtype= bool)
+       responsetimes = responsetimes[moved]
+       
+       # we are done with trialsintervals so we can modify it without changing it back
+       trialsintervals = trialsintervals[moved,:] 
+       
+       #this needs to be fixed, we need to remove the wheel moves not occuring in
+       #one of the trials
+
+       pvals = []
+       for i in range(0, len(clusters_idx)):
+            cluster = clusters_idx[i]
+            this_clusters_spikes = spikestimes[np.isin(spikesclusters, cluster)]
+            if passed_tests[i]:
+                pvals.append(0) #auto pass for neurons that passed one previous test
+            else:
+                baseline = []
+                trialrate = []
+                this_clusters_spikes = spikestimes[np.isin(spikesclusters, cluster)]
+                for trial in range(0, trialsintervals.shape[0]):
+                    #first we make the baserate
+                    begin = trialsintervals[trial,0]-0.2
+                    end = trialsintervals[trial,0]
+                    rate = sum(np.logical_and(this_clusters_spikes>=begin, this_clusters_spikes<=end))
+                    rate = rate/(begin-end)
+                    baseline.append(rate)
+                    
+                for move in range(0, len(responsetimes)):
+                    print(move)
+                    #now we do the stimulus onset rate
+                    begin = responsetimes[move] - 0.1
+                    end = responsetimes[move] + 0.05
+                    rate = sum(np.logical_and(this_clusters_spikes>=begin, this_clusters_spikes<=end))
+                    rate=rate/(begin-end)
+                    trialrate.append(rate)
+                #end of for loops to get rates
+                if sum(trialrate+baseline)==0:
+                    pvals.append(1)
+                else:
+                    pvals.append(scipy.stats.wilcoxon(x=baseline,y = trialrate)[1])
+        #end of cluster for loop
+        passed_tests = np.array(pvals)<0.05
+       
+       
+       """
+            (4) Wilcoxon rank-sum test between pre-movement rates on left choice 
+        trials and those on right choice trials; 
+        
+        #Note:  here we use the mannwhitney becasue it is equvilent but can handle
+                   #different sample sizes, which arrise in this test
+        """
+        
+       i = 0
+       responsechoice = fetched_objects['trialsresponse_choice']
+       responsechoice = responsechoice[trialsincluded]
+       moved = np.array(responsechoice, dtype= bool)
+       responsechoice = responsechoice[moved]
+       # left choice
+       leftchoice = responsechoice == 1
+       leftchoice = responsetimes[leftchoice]
+       # right choice
+       rightchoice = responsechoice == -1
+       rightchoice = responsetimes[rightchoice]
+       pvals = []
+       for i in range(0, len(clusters_idx)):
+           cluster = clusters_idx[i]
+           this_clusters_spikes = spikestimes[np.isin(spikesclusters, cluster)]
+           if passed_tests[i]:
+               pvals.append(0) #auto pass for neurons that passed one previous tests
+           else:
+               baseline = []
+               trialrate = []
+               this_clusters_spikes = spikestimes[np.isin(spikesclusters, cluster)]
+               for move in range(0, len(leftchoice)):
+                   #first we make the baserate
+                   begin = leftchoice[move] - 0.1
+                   end = leftchoice[move] + 0.05
+                   rate = sum(np.logical_and(this_clusters_spikes>=begin, this_clusters_spikes<=end))
+                   rate = rate/(begin-end)
+                   baseline.append(rate)
+                    
+               for move in range(0, len(rightchoice)):
+                   #now we do the stimulus onset rate
+                   begin = rightchoice[move] - 0.1
+                   end = rightchoice[move] + 0.05
+                   rate = sum(np.logical_and(this_clusters_spikes>=begin, this_clusters_spikes<=end))
+                   rate = rate/(begin-end)
+                   trialrate.append(rate)
+                #end of for loops to get rates
+               if sum(trialrate + baseline)==0:
+                   pvals.append(1)
+               else:
+                   #here we use the mannwhitney becasue ti is equvilent but can handle
+                   #different sample sizes, which arrise in this test
+                   pvals.append(scipy.stats.mannwhitneyu(x=baseline,y = trialrate)[1])
+        #end of cluster for loop
+        passed_tests = np.array(pvals)<0.05
+
+        
+        
+        """
+        (5) sign-rank test between post-movement rates (−0.05 to 0.2 s 
+        relative to movement onset) and baseline rate; 
+        """
+        """
+        (6) rank–sum test between post-reward rates (0 to 0.15 s relative 
+        to reward delivery for correct NoGos) and baseline rates. 
+        
+        A neuron was considered active during the task, or to have detectable 
+        modulation during some part of the task, if any of the P values on 
+        these tests were below a Bonferroni-corrected alpha value (0.05/6 = 0.0083). 
+        
+        However, because the tests were coarse and would be relatively insensitive
+        to neurons with transient activity, a looser threshold was used to 
+        determine the neurons included for statistical analyses (Figs. 3–5): 
+        if any of the first four tests (that is, those concerning the period 
+        between stimulus onset and movement onset) had a P value less than 0.05.'    
+    
+    """
+
+
+
+
+
 #For smoothing we make halfguassian_kernel1d and halfgaussian_filter1d
 def halfgaussian_kernel1d(sigma, radius):
     """
@@ -108,9 +373,10 @@ def halfgaussian_filter1d(input, sigma, axis=-1, output=None,
 
 #now we can make the function that will generate our Y matrix, the firing rates to predict
 #based on our kernels
-def frequency_array(session, filepath, bin_size, filter_by_quality= True, minquality = 2,
-                    restricted_neuron_test = False):
+def frequency_array(session, filepath, bin_size, minquality = 2,
+                    filter_clusters = False, only_use_these_clusters=[]):
     """
+    session:  the name of the desired session, we take it and generate....
     Takes Alyx format .npy files and load them into a numpy array,
     can either give you 
     
@@ -120,10 +386,13 @@ def frequency_array(session, filepath, bin_size, filter_by_quality= True, minqua
     vector of end_times
     end_times: time to stop collecting spikes
     
-    return_meta_data: returns ABA location and cluster depth
     
-    filter_by_quality= false by default if supplied with a vector of quality scores will auto 
-    remove the ones below a certain threshold
+    
+    
+    filter_clusters= if this is true will search only_use_these_clusters,
+    match them to the spiek index and filter spiketimes, spikesclusters apprpriately
+    
+    only_use_these_clusters: a list or array of clusters to filter
     
     Returns: A numpy array of spike frequencies for each neuron,
     if return_meta_data also supplies a dataframe of the cluster ID and
@@ -138,6 +407,9 @@ def frequency_array(session, filepath, bin_size, filter_by_quality= True, minqua
         steinmetz annotated the kilosorts clusters as 1, 2, or 3 recomended
         using nothing below a 2
         -returns 2 numpy arrays one for the clusters 
+        
+        THIS SECTION MAY BE UNNESCESSARY
+        
         """
         
         #We call the relvant objects for clusters (neurons) identity of a firing
@@ -155,11 +427,10 @@ def frequency_array(session, filepath, bin_size, filter_by_quality= True, minqua
         clusterquality = spikes['clusters_phy_annotation'] #quality rating of clsuters
         clusters_idx = np.arange(0, len(clusterquality)).reshape(clusterquality.shape)
         
-        if filter_by_quality:
+        if filter_clusters:
             #finds the clusters in the time series with bad quality (q<2) and removes them
             #from the series holding when a pike occured and what it's identity was
-            good_clusters = clusters_idx[clusterquality >= minquality] 
-            cluster_mask = np.isin(spikesclusters, good_clusters) #boolean mask
+            cluster_mask = np.isin(spikesclusters, only_use_these_clusters) #boolean mask
             spikestimes = spikestimes[cluster_mask] 
             spikesclusters = spikesclusters[cluster_mask]
             clusters_idx = np.unique(spikesclusters)
@@ -169,28 +440,19 @@ def frequency_array(session, filepath, bin_size, filter_by_quality= True, minqua
     # run above function and get the spikes serieses for this session
     clusters, times, filteredclusters_idx = get_and_filter_spikes()
     
-    
-    ######FOR TESTING PURPOSES WE WILL RESTRICT THIS TO ONE NEURON
-    if restricted_neuron_test:
-        #this restricts it to two neurons higly active in trial one of 'Muller_2017-01-08'
-        #assumes sesh = allsessions[1]
-        filteredclusters_idx = filteredclusters_idx[0:10]
-        restricted_idx = np.isin(clusters, filteredclusters_idx)
-        clusters = clusters[restricted_idx]
-        times = times[restricted_idx]  
-        """
-        Takes first ten values that survive quality control 
-        
-        """
-    #end of if-statement for restricted neuron
-    ######### END OF TESTING CODE AND 
-
-    
-    
-    #getting the timing information of when trials begin and end
-    trialsintervals = stein.calldata(session, ['trials.intervals.npy'],
+    #getting thetrials objects we need
+    trials = stein.calldata(session, ['trials.intervals.npy',
+                                      'trials.included.npy'],
                 steinmetzpath=filepath)
-    trialintervals = trialsintervals["trialsintervals"]
+    
+    #the timing information of when trials begin and end
+    trialsintervals = trials["trialsintervals"]
+    
+    #wheter or not a trial was included based on engagement, logical 
+    trialsincluded = trials["trialsincluded"]
+    
+    # filter trialsintervals by trialsincluded
+    trialsintervals = trialsintervals[trialsincluded,:]
     
     #this will be our output
     session_arr = np.zeros([len(np.unique(clusters)),2], dtype=float)
@@ -254,16 +516,22 @@ def frequency_array(session, filepath, bin_size, filter_by_quality= True, minqua
 
 
 sesh = 'Muller_2017-01-07'
+#note now filtering is done beforehand we need to do this ourselves,
+#use filtering script above to select whihc neurons to include
 #Run this on a for loop
 
 #tatum_arrya is the firing rates after smoothing in hz
 # index is the clusters original index also chekcing executuion time
+allsessions = list(stein.recording_key())
+datapath = os.fspath(r'C:\Users\angus\Desktop\SteinmetzLab\9598406\spikeAndBehavioralData\allData')
 
 start = timeit.timeit()#tracking run time
-muller_array, index = frequency_array(sesh, datapath, 
+muller_array, index = frequency_array(session = 'Muller_2017-01-07', 
+                                     filepath = datapath, 
                                      bin_size = 0.005,
-                                     filter_by_quality= True, 
-                                     minquality = 2,
+                                     filter_clusters = True,
+                                     use_only_these_clusters =['needs to be done']
+
                                      restricted_neuron_test = True) # remove this after testing   
 end = timeit.timeit() #tracking runtime
 print(end - start) #RUNTIME
@@ -316,78 +584,8 @@ print(end - start) #RUNTIME
             """      
                     
                 
-def stats_filters():
-    
-    """
-        Here we test for the 6 critieria used in the publication.
-        
-        According to Steinmetz et al. (2019) neurons were further tested before
-        inclusion in the kernel regression...
-        '...a set of six statistical tests were used to detect changes in activity 
-        during various task epochs and conditions: 
-            (1) Wilcoxon sign-rank test between trial firing rate (rate of 
-        spikes between stimulus onset and 400 ms post-stimulus) and baseline
-        rate (defined in period −0.2 to 0 s relative to stimulus onset on each 
-        trial); 
-            (2) sign-rank test between stimulus-driven rate (firing rate 
-        between 0.05 and 0.15 s after stimulus onset) and baseline rate; 
-            (3) sign-rank test between pre-movement rates (−0.1 to 0.05 s 
-       relative to movement onset) and baseline rate (for trials with movements);
-            (4) Wilcoxon rank-sum test between pre-movement rates on left choice 
-        trials and those on right choice trials; 
-            (5) sign-rank test between post-movement rates (−0.05 to 0.2 s 
-        relative to movement onset) and baseline rate; 
-            (6) rank–sum test between post-reward rates (0 to 0.15 s relative 
-        to reward delivery for correct NoGos) and baseline rates. 
-        
-        A neuron was considered active during the task, or to have detectable 
-        modulation during some part of the task, if any of the P values on 
-        these tests were below a Bonferroni-corrected alpha value (0.05/6 = 0.0083). 
-        
-        However, because the tests were coarse and would be relatively insensitive
-        to neurons with transient activity, a looser threshold was used to 
-        determine the neurons included for statistical analyses (Figs. 3–5): 
-        if any of the first four tests (that is, those concerning the period 
-        between stimulus onset and movement onset) had a P value less than 0.05.'
-       
-    """
-    
-    
-    
-    """
-        Here we test for the 6 critieria used in the publication.
-        
-        According to Steinmetz et al. (2019) neurons were further tested before
-        inclusion in the kernel regression...
-        '...a set of six statistical tests were used to detect changes in activity 
-        during various task epochs and conditions: 
-            (1) Wilcoxon sign-rank test between trial firing rate (rate of 
-        spikes between stimulus onset and 400 ms post-stimulus) and baseline
-        rate (defined in period −0.2 to 0 s relative to stimulus onset on each 
-        trial); 
-            (2) sign-rank test between stimulus-driven rate (firing rate 
-        between 0.05 and 0.15 s after stimulus onset) and baseline rate; 
-            (3) sign-rank test between pre-movement rates (−0.1 to 0.05 s 
-       relative to movement onset) and baseline rate (for trials with movements);
-            (4) Wilcoxon rank-sum test between pre-movement rates on left choice 
-        trials and those on right choice trials; 
-            (5) sign-rank test between post-movement rates (−0.05 to 0.2 s 
-        relative to movement onset) and baseline rate; 
-            (6) rank–sum test between post-reward rates (0 to 0.15 s relative 
-        to reward delivery for correct NoGos) and baseline rates. 
-        
-        A neuron was considered active during the task, or to have detectable 
-        modulation during some part of the task, if any of the P values on 
-        these tests were below a Bonferroni-corrected alpha value (0.05/6 = 0.0083). 
-        
-        However, because the tests were coarse and would be relatively insensitive
-        to neurons with transient activity, a looser threshold was used to 
-        determine the neurons included for statistical analyses (Figs. 3–5): 
-        if any of the first four tests (that is, those concerning the period 
-        between stimulus onset and movement onset) had a P value less than 0.05.'
-        
-        
-    """
+
+
                 
                 
                 
@@ -497,36 +695,6 @@ For visualizing firing rates (Extended Data Fig. 4), the activity of each neuron
 """
 
 
-
-
-
-###BINNING, SMOOTHING AND MAKING Y AND X
-#preprocess spiking data credit goes to this stack answer: https://stackoverflow.com/questions/71003634/applying-a-half-gaussian-filter-to-binned-time-series-data-in-python/71003897#71003897
-#We need to bin the spikes
-import scipy.ndimage
-
-def halfgaussian_kernel1d(sigma, radius):
-    """
-    Computes a 1-D Half-Gaussian convolution kernel.
-    """
-    sigma2 = sigma * sigma
-    x = np.arange(0, radius+1)
-    phi_x = np.exp(-0.5 / sigma2 * x ** 2)
-    phi_x = phi_x / phi_x.sum()
-
-    return phi_x
-
-def halfgaussian_filter1d(input, sigma, axis=-1, output=None,
-                      mode="constant", cval=0.0, truncate=4.0):
-    """
-    Convolves a 1-D Half-Gaussian convolution kernel.
-    """
-    sd = float(sigma)
-    # make the radius of the filter equal to truncate standard deviations
-    lw = int(truncate * sd + 0.5)
-    weights = halfgaussian_kernel1d(sigma, lw)
-    origin = -lw // 2
-    return scipy.ndimage.convolve1d(input, weights, axis, output, mode, cval, origin)
 
 
 

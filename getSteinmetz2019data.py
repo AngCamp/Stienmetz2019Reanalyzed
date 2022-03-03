@@ -414,3 +414,23 @@ def datatype_key(supress_git_link=True, structured=False):
         )
 
     return steinmetz_data_set
+
+
+"""
+WORK IN PROGRESS
+
+-currently work is being done in session_objects_draft.py and test_session_objects.py
+
+#making objects to store our variables on
+
+class channels:
+    #class to store .npy files laoded from the clusters
+    def __init__(self, session_path, brainLocation, 
+                 s):
+        self.session_path = x # the path to the session
+
+
+
+class session_object(self, path_to_session):
+    def
+"""
