@@ -130,6 +130,7 @@ class Session:
         return np.load(join(self.path, key))
 
     def get_all_data(self, key_prefix):
+        #consider having and if function here to check for .tsvs and adding a way to laod those
         return {to_key(f, key_prefix) : self.get_data(f) for f in glob(join(self.path, key_prefix + '.*.npy'))}
     
     @property

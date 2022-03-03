@@ -538,6 +538,54 @@ print(end - start) #RUNTIME
 
 
 
+def make_toeplitz_matrix(session, bin_size,
+                         kernels):
+    """
+    Makes the matrix X aka P in Steinmetz et al., (2019), the Toeplitz matrix of
+    dimension.
+    Input:
+        session: session name see stein.recording_key()
+        bin_size:  needs to matech taht used for frequency array
+        kernels:  whihc kernels to inlcude
+        
+    
+    """
+    #just for testing we will set session to this...
+    session = 'Theiler_2017-10-11'
+    bin_size = 0.005
+    
+    
+    fetched_objects = stein.calldata(session,
+                                     ['trails.intervals.npy',
+                                      'trials.included.npy',
+                                      'trials.response_choice.npy',
+                                      'trials.visualStim_contrastLeft.npy',
+                                      'trials.visualStim_contrastRight.npy'])
+    
+    include = fetched_objects['trialsincluded']
+    trials_intervals = fetched_objects['trialsintervals']
+    
+    def trial_section(interval, response,
+                      Left_contrast, Right_contrast):
+        
+        #here the timesteps are length and each kernel is hieght
+        
+        n_steps = (interval[1]-interval[0])/bin_seize
+        n_steps = int(n_steps+1) #+1 mean the rounding will not cut off a step
+        #same thing is assumed in frequency_array and they need to match lengths
+        
+        #vision kernel
+        
+        #movemetn kernel
+        
+        #choice kernel, the only one with psitive and negative values
+        
+        return(X_trial_i)
+    
+    
+    return(X)
+
+
 #the model is calculated neuron by neuron using a reduced representation 
 # across 
 
