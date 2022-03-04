@@ -4,13 +4,9 @@
 #Angus Campbell
 
 """
-Please Note all functions here assume all times tested will be within trial
-        intervals will need some reworking if we want to use non-trial events as well.
-        Usually these go at the start of functions as they call the session data.  All use trials.included.npy to
-        filter various data, so these would need to be changed.  Be aware of other spots as well
-        and double check code, usually it will beocme appernte when you run this as you
-        will get an index mismatch error or something at some point but be careful.
-        
+
+frequency_array still needs testing.
+       
 Ignore the unexpected indent in spyder, it just doesnt like stein.calldata
 
 Description of Kernel Regression Implementation:
@@ -45,11 +41,16 @@ import getSteinmetz2019data as stein
 import warnings
 
 
+FILEPATH = os.fspath(r'C:\Users\angus\Desktop\SteinmetzLab\9598406\spikeAndBehavioralData\allData')
+
+
+
+"""
 start = timeit.timeit()
 
 end = timeit.timeit()
-print(end - start)
-
+print(end - start)"
+"""
 #for ubuntu....
 #cd mnt/c/Users/angus/Desktop/SteinmetzLab/Analysis 
 
@@ -126,26 +127,37 @@ def halfgaussian_filter1d(input, sigma, axis=-1, output=None,
 
 #now we can make the function that will generate our Y matrix, the firing rates to predict
 #based on our kernels
-def frequency_array(session, filepath, bin_size, minquality = 2,
-                    filter_clusters = False, only_use_these_clusters=[]):
+def frequency_array(session, bin_size, 
+                    only_use_these_clusters=[],
+                    quality_annotation_filter = True,
+                    select_trials = [],
+                    filter_by_engagement = True):
     """
-    session:  the name of the desired session, we take it and generate....
-    Takes Alyx format .npy files and load them into a numpy array,
-    can either give you 
-    
-    spikeclusterIDs:  from the 'spikes.clusters.npy' file
-    spikestimes: from the 'spikes.times.npy'
-    start_times: times to start collecting from should have corrresponding equal length 
-    vector of end_times
-    end_times: time to stop collecting spikes
-    
-    
-    
-    
-    filter_clusters= if this is true will search only_use_these_clusters,
-    match them to the spiek index and filter spiketimes, spikesclusters apprpriately
-    
-    only_use_these_clusters: a list or array of clusters to filter
+    Input:
+        session:  the name of the desired session, we take it and generate....
+            Takes Alyx format .npy files and load them into a numpy array,
+            can either give you 
+            spikeclusterIDs:  from the 'spikes.clusters.npy' file
+            spikestimes: from the 'spikes.times.npy'
+            start_times: times to start collecting from should have corrresponding equal length 
+                vector of end_times
+            end_times: time to stop collecting spikes
+        
+        bin_size:  the length in seconds of the bins we calculate frqncy over
+        
+        only_use_these_clusters: a list or array of clusters to filter, should be
+                            supplied as an actual list of indices a boolean will not works
+                            
+        quality_annotation_filter: default to true overwritten byonly_use_these_clusters,
+                                  removes clusters below quality annotation of 2 (out of 3)
+              
+        select_trials: may be boolean or an array of ints, limits trials to particular set,
+                    should match that of the X you are pulling from
+                    
+        filter_by_engagement: by default set to true removes trials based on engagement index
+        
+        
+
     
     Returns: A numpy array of spike frequencies for each neuron,
     if return_meta_data also supplies a dataframe of the cluster ID and
@@ -164,23 +176,33 @@ def frequency_array(session, filepath, bin_size, minquality = 2,
         THIS SECTION MAY BE UNNESCESSARY
         
         """
-        
+       
         #We call the relvant objects for clusters (neurons) identity of a firing
         #the time at which a firing occured and the quality of the recording
         spikes = stein.calldata(session, ['spikes.clusters.npy',
                                   'spikes.times.npy',
                                   'clusters._phy_annotation.npy'],
-                        steinmetzpath=filepath)
+                        steinmetzpath=FILEPATH)
         
         
         
         spikesclusters = spikes['spikesclusters'] #the idneity in sequence of 
         #each cluster, match it with spikestimes to get timing and identity info
         spikestimes = spikes['spikestimes'] #times corresponding to clusters firing
-        clusterquality = spikes['clusters_phy_annotation'] #quality rating of clsuters
-        clusters_idx = np.arange(0, len(clusterquality)).reshape(clusterquality.shape)
         
-        if filter_clusters:
+        # by default remove clusters wiht a rating of 1 
+        if quality_annotation_filter:
+            clusterquality = spikes['clusters_phy_annotation'] #quality rating of clsuters
+            clusters_idx = np.arange(0, len(clusterquality)).reshape(clusterquality.shape)
+            clusters_mask = clusterquality >=2 #boolean mask
+            clusters_idx = clusters_idx[clusters_mask] #filter out low qualit clusters
+            
+            #remove those clusters from the time series
+            spikestimes = spikestimes[np.isin(spikesclusters, clusters_idx)] 
+            spikesclusters = spikesclusters[np.isin(spikesclusters, clusters_idx)]
+
+        # if provided clusters to use instead....
+        if len(only_use_these_clusters)!=0:
             #finds the clusters in the time series with bad quality (q<2) and removes them
             #from the series holding when a pike occured and what it's identity was
             cluster_mask = np.isin(spikesclusters, only_use_these_clusters) #boolean mask
@@ -196,13 +218,17 @@ def frequency_array(session, filepath, bin_size, minquality = 2,
     #getting thetrials objects we need
     trials = stein.calldata(session, ['trials.intervals.npy',
                                       'trials.included.npy'],
-                steinmetzpath=filepath)
+                steinmetzpath=FILEPATH)
     
-    #the timing information of when trials begin and end
-    trialsintervals = trials["trialsintervals"]
     
-    #wheter or not a trial was included based on engagement, logical 
-    trialsincluded = trials["trialsincluded"]
+    # filter by the engagfement index filter provided is set tp ture by default
+    # alternately a filter may be supplied
+    if filter_by_engagement:
+        trialsincluded = trials['trialsincluded']
+    
+    # Supplying this filter overwrites the engagement-index
+    if len(select_trials)!=0:
+        trialsincluded = select_trials
     
     # filter trialsintervals by trialsincluded
     trialsintervals = trialsintervals[trialsincluded,:]
@@ -268,31 +294,9 @@ def frequency_array(session, filepath, bin_size, minquality = 2,
     return (session_arr, filteredclusters_idx)
 
 
-sesh = 'Muller_2017-01-07'
-#note now filtering is done beforehand we need to do this ourselves,
-#use filtering script above to select whihc neurons to include
-#Run this on a for loop
-
-#tatum_arrya is the firing rates after smoothing in hz
-# index is the clusters original index also chekcing executuion time
-allsessions = list(stein.recording_key())
-datapath = os.fspath(r'C:\Users\angus\Desktop\SteinmetzLab\9598406\spikeAndBehavioralData\allData')
-
-start = timeit.timeit()#tracking run time
-muller_array, index = frequency_array(session = 'Muller_2017-01-07', 
-                                     filepath = datapath, 
-                                     bin_size = 0.005,
-                                     filter_clusters = True,
-                                     use_only_these_clusters =['needs to be done']
-
-                                     restricted_neuron_test = True) # remove this after testing   
-end = timeit.timeit() #tracking runtime
-print(end - start) #RUNTIME
-
-
 
 def make_toeplitz_matrix(session, bin_size,
-                         kernels):
+                         kernels, filter_by_engagement = True, select_trials = []):
     """
     Makes the matrix X aka P in Steinmetz et al., (2019), the Toeplitz matrix of
     dimension.  THe kernel is either 0 or 1 or -1
@@ -307,9 +311,7 @@ def make_toeplitz_matrix(session, bin_size,
         
     
     """
-    #just for testing we will set session to this...
-    session = 'Theiler_2017-10-11'
-    bin_size = 0.005
+
     
     #Run this before trial_section()
     fetched_objects = stein.calldata(session,
@@ -320,16 +322,29 @@ def make_toeplitz_matrix(session, bin_size,
                                       'trials.visualStim_contrastLeft.npy',
                                       'trials.visualStim_contrastRight.npy',
                                       'trials.visualStim_times.npy'],
-                                     steinmetzpath = datapath)
+                                     steinmetzpath = FILEPATH)
     
-    include = fetched_objects['trialsincluded']
-    trialsintervals = fetched_objects['trialsintervals']
-    trialsintervals = trialsintervals[include.reshape(trialsintervals.shape[0]),:]
+    # filter by the engagfement index filter provided is set tp ture by default
+    # alternately a filter may be supplied
+    if filter_by_engagement:
+        include = fetched_objects['trialsincluded']
+        trialsintervals = fetched_objects['trialsintervals']
+        trialsintervals = trialsintervals[include.reshape(trialsintervals.shape[0]),:]
+    
+    # Supplying this filter overwrites the engagement-index
+    if len(select_trials)!=0:
+        include = select_trials
+        trialsintervals = fetched_objects['trialsintervals']
+        trialsintervals = trialsintervals[include]
+    
+
+    
+    responsechoice = fetched_objects['trialsresponse_choice'][include]
+    responsetimes = fetched_objects['trialsresponse_times'][include]
     Leftcontrasts = fetched_objects['trialsvisualStim_contrastLeft'][include]
     Rightcontrasts = fetched_objects['trialsvisualStim_contrastRight'][include]
     stim_times = fetched_objects['trialsvisualStim_times'][include]
-    responsechoice = fetched_objects['trialsresponse_choice'][include]
-    responsetimes = fetched_objects['trialsresponse_times'][include]
+
     
     
     # the vision kenels, L_c, are supported for -0.05 to 0.4 post stimulus onset
@@ -367,9 +382,17 @@ def make_toeplitz_matrix(session, bin_size,
             
             """
             
+            #these four lines scale the starting and stopping based on bin_size
+            #prevents making non-mathcing trialkernels and kernels
+            L_start = (bin_size/0.005)*L_start
+            L_start = floor(L_start)
+            L_stop = (bin_size/0.005)*L_stop
+            L_stop = ceil(L_stop)
+            
             kernel_length = L_stop-L_start
             kernel = np.diag(np.ones(kernel_length))*coef
             trialkernel[T_start:T_stop, L_start:L_stop] = kernel
+
             return trialkernel
 
         
@@ -388,7 +411,7 @@ def make_toeplitz_matrix(session, bin_size,
         The Vision kernels Kc,n(t) are supported over the window −0.05 to 0.4 s 
         relative to stimulus onset,
         """
-        if kernel[0] == True:
+        if kernels[0] == True:
             
             # instatiating zeros to fill in with diagonal 1's
             visionkernel = np.zeros(( T_trial, 6*90+90), dtype =  int)
@@ -433,7 +456,7 @@ def make_toeplitz_matrix(session, bin_size,
         the Action and Choice kernels are supported over the window −0.25 
         to 0.025 s relative to movement onset. 
         """
-        if kernel[1]==True:
+        if kernels[1]==True:
             
             # instantiate matrix
             actionkernel = np.zeros((T_trial, 55), dtype = int)
@@ -456,7 +479,7 @@ def make_toeplitz_matrix(session, bin_size,
         the Action and Choice kernels are supported over the window −0.25 
         to 0.025 s relative to movement onset. 
         """
-        if kernel[2]==True:
+        if kernels[2]==True:
             
             # instantiate matrix
             choicekernel = np.zeros((T_trial, 55), dtype = int)
@@ -490,11 +513,11 @@ def make_toeplitz_matrix(session, bin_size,
                 include choice kernel without action kernel."
         )
         
-        if kernel[0]&kernel[1]&kernel[2]:
+        if kernels[0] & kernels[1] & kernels[2]:
             X_trial_i = np.column_stack([visionkernel , actionkernel, choicekernel])
-        elif kernel[0]&kernel[1]:
+        elif kernels[0] & kernels[1]:
             X_trial_i = np.column_stack([visionkernel , actionkernel])
-        elif kernel[0]&kernel[1]:
+        elif kernels[0]:
             X_trial_i = visionkernel
         else:
             kernel_improperly_spcified()
@@ -502,9 +525,125 @@ def make_toeplitz_matrix(session, bin_size,
         
         return(X_trial_i)
     
-    for trial in trials.intervals
+    #instantiate the array to stack based on kernels included
+    #this will need to be changed if you change the kernels included
+    if kernels[0] & kernels[1] & kernels[2]:
+        X = np.zeros((2, 740))
+    elif kernels[0] & kernels[1]:
+        X = np.zeros((2, 685))
+    elif kernels[0]:
+        X = np.zeros((2, 630))
+    else:
+        kernel_improperly_spcified()
+    # loop to rowstack all these things
+    for i in range(0, trialsintervals.shape[0]):
+        X_i = trial_section(i)
+        X = np.row_stack([X, X_i])
+    #end of this for loop
     
-    return(X)
+    #clip instatiation array
+    X = X[2:,:]
+    
+    return X
+
+
+
+############# ACTUALLY RUNNING THE CODE AND KERNEL REG
+
+start = timeit.timeit()
+#These trials selected because they contain all types of choices, left 2 rights then a no go
+# [4,5,6,7]
+
+#test this fucntion out
+#note steinmetz mthods uses P and X interchanably so
+# I thought ti would be appropriate here
+
+P = make_toeplitz_matrix(session = 'Theiler_2017-10-11', 
+                     bin_size = 0.005, 
+                     kernels = [True, True, True],
+                     select_trials=np.array([4,5,6,7])
+                     )
+
+"""
+
+It's worth noting that even at a full session length P runs no problem
+
+P = make_toeplitz_matrix(session = 'Theiler_2017-10-11', 
+                     bin_size = 0.005, 
+                     kernels = [True, True, True]
+                     )
+"""
+
+end= timeit.timeit()
+print(start-end)
+
+
+import seaborn as sns
+
+sns.heatmap(P)
+
+"""
+#How test spikes were selected...
+list_of = ['spikes.clusters.npy',
+                          'spikes.times.npy',
+                          'clusters._phy_annotation.npy',
+                          'trials.intervals.npy',
+                          'trials.included.npy',
+                          'trials.response_choice.npy',
+                          'trials.visualStim_contrastLeft.npy',
+                          'trials.visualStim_contrastRight.npy']
+
+theiler = stein.calldata(session = ['Theiler_2017-10-11'],
+                         list_of,
+                         steinmetzpath=FILEPATH)
+
+
+
+
+clusterquality = theiler['clusters_phy_annotation']
+spikesclusters = theiler['spikesclusters'] #quality rating of clsuters
+clusters_idx = np.unique(spikesclusters).reshape(clusterquality.shape)
+clusters_mask = clusterquality >=2 #boolean mask
+clusters_idx = clusters_idx[clusters_mask] #filter out low quality clusters
+clusters_idx[0:10]
+
+only_use_these_clusters=[ 3,  4,  7,  9, 12, 14, 16, 17, 18, 19]
+"""
+start = time.it()
+# only use these clusters includes first 10 clusters in clusters_idx that pass quality
+Y, clusters_index = frequency_array(session = 'Theiler_2017-10-11', 
+                                    bin_size = 0.005, 
+                                    only_use_these_clusters=[ 3,  4])
+"""
+Traceback (most recent call last):
+
+  File "<ipython-input-3-c46d16d81243>", line 1, in <module>
+    Y, clusters_index = frequency_array(session = 'Theiler_2017-10-11',
+
+  File "<ipython-input-1-6ada96e8e5de>", line 204, in frequency_array
+    trialsintervals = trialsintervals[trialsincluded,:]
+
+UnboundLocalError: local variable 'trialsintervals' referenced before assignment
+
+"""
+
+
+end = timeit.timeit()
+print(start - end)
+
+
+
+# at some point we need to write a function for clusters_index that pulls its ABA
+
+#CCA on P and Y for this session
+
+#Mutiply 
+
+#Eventually we want Y_estimated
+
+
+
+
 
 
 ####NOTE FROM ABHJIT JUST PREDICT BEHAVIOUR, use that body publication
@@ -522,7 +661,7 @@ def make_toeplitz_matrix(session, bin_size,
     #finds a session and returns the locations of its channels 
     
     locations = stein.calldata(session, ['channels.brainLocation.tsv','channels.probe.npy'], 
-                        steinmetzpath= datapath, propertysearch = False) 
+                        steinmetzpath= FILEPATH, propertysearch = False) 
     locations = locations['channelsbrainLocation']
     locations = pd.Series(locations['allen_ontology'])
     
@@ -531,7 +670,7 @@ def make_toeplitz_matrix(session, bin_size,
     locations = stein.calldata(tate, ['clusters.peakChannel.npy',
                                       'channels.brainLocation.tsv',
                                       'channels.probe.npy'], 
-                        steinmetzpath= datapath, propertysearch = False)
+                        steinmetzpath= FILEPATH, propertysearch = False)
     
     #give channel(on probe) to associate to cluster
     clusterpeaks = locations['clusterspeakChannel'] 
@@ -570,9 +709,7 @@ def make_toeplitz_matrix(session, bin_size,
         
         
 
-    spikesclusters = np.array(list(spikes['spikesclusters'])) #delete after testing
-    spikestimes = np.array(list(spikes['spikestimes'])) 
-   
+  
     #filter out low quality scores only if quality scores are supplied
 
     
