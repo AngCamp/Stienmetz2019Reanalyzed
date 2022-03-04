@@ -25,9 +25,13 @@ import os
 import numpy as np
 import pandas as pd
 from math import ceil
+from math import floor
 import scipy.ndimage
 import timeit #for testing and tracking run times
 import scipy.stats 
+os.chdir('C:/Users/angus/Desktop/SteinmetzLab/Analysis')
+import getSteinmetz2019data as stein
+
 
 start = timeit.timeit()
 
@@ -37,8 +41,7 @@ print(end - start)
 #for ubuntu....
 #cd mnt/c/Users/angus/Desktop/SteinmetzLab/Analysis 
 
-os.chdir('C:/Users/angus/Desktop/SteinmetzLab/Analysis')
-import getSteinmetz2019data as stein
+
 
 ############ FILTERING
 ##Going from neurons across all regions and mice
@@ -542,11 +545,12 @@ def make_toeplitz_matrix(session, bin_size,
                          kernels):
     """
     Makes the matrix X aka P in Steinmetz et al., (2019), the Toeplitz matrix of
-    dimension.
+    dimension.  THe kernel is either 0 or 1 or -1
     Input:
         session: session name see stein.recording_key()
         bin_size:  needs to matech taht used for frequency array
-        kernels:  whihc kernels to inlcude
+        kernels:  which kernels to inlcude should be a three entry
+                boolean list
         
     
     """
@@ -554,37 +558,133 @@ def make_toeplitz_matrix(session, bin_size,
     session = 'Theiler_2017-10-11'
     bin_size = 0.005
     
-    
+    #Run this before trial_section()
     fetched_objects = stein.calldata(session,
+                                     ['trials.intervals.npy',
+                                      'trials.included.npy',
+                                      'trials.response_choice.npy',
+                                      'trials.visualStim_contrastLeft.npy',
+                                      'trials.visualStim_contrastRight.npy',
+                                      'trials.visualStim_times.npy'],
+                                     steinmetzpath = datapath)
+    
+    include = fetched_objects['trialsincluded']
+    trialsintervals = fetched_objects['trialsintervals']
+    trialsintervals = trialsintervals[include.reshape(trialsintervals.shape[0]),:]
+    Leftcontrasts = fetched_objects['trialsvisualStim_contrastLeft'][include]
+    Rightcontrasts = fetched_objects['trialsvisualStim_contrastRight'][include]
+    stim_times = fetched_objects['trialsvisualStim_times'][include]
+    
+    
+    # the vision kenels, L_c, are supported for -0.05 to 0.4 post stimulus onset
+    # the L_c kernels are therefore 90 high
+    # the L_d kernels, for actions and choice are 55 high while L_c are 90 
+    # the action kernels are supported over -025 to 
+    def trial_section(trial):
+        """
+        Requires a fetched_objects = stein.calldata(session,
                                      ['trails.intervals.npy',
                                       'trials.included.npy',
                                       'trials.response_choice.npy',
                                       'trials.visualStim_contrastLeft.npy',
                                       'trials.visualStim_contrastRight.npy'])
-    
-    include = fetched_objects['trialsincluded']
-    trials_intervals = fetched_objects['trialsintervals']
-    
-    def trial_section(interval, response,
-                      Left_contrast, Right_contrast):
+        
+        to be run before hand.
+        
+        Input:  
+            trial, specifies which trial interval this is running on, be sure to
+            filter trialsintervals and the behavioural measures as well with
+            trialsincluded to drop the trials with low engagement
+            
+            kernel: a three item boolean list specifcying which kernels to include
+            in this run kernel = [vision, action, choice],
+            should be specified beforehand if this is run in make_toeplitz_matrix()
+        
+        """
+
         
         #here the timesteps are length and each kernel is hieght
-        
-        n_steps = (interval[1]-interval[0])/bin_seize
-        n_steps = int(n_steps+1) #+1 mean the rounding will not cut off a step
+        # T_trial is calculated same as s_steps in frequency_array()
+        trial_start = trialsintervals[trial,0]
+        trial_end = trialsintervals[trial,1]
+        T_trial = ceil((trial_end - trial_start)/bin_size)
+
         #same thing is assumed in frequency_array and they need to match lengths
         
-        #vision kernel
         
-        #movemetn kernel
         
-        #choice kernel, the only one with psitive and negative values
+        #the 6 vision kernels (left low, left med, left high, right low, etc..)
+        """
+        The Vision kernels Kc,n(t) are supported over the window −0.05 to 0.4 s 
+        relative to stimulus onset,
+        """
+        if kernel[0] == True:
+            
+            # instatiating zeros to fill in with diagonal 1's
+            visionkernel = np.zeros(( T_trial, 6*90+90), dtype =  int)
+            # indices for looping over
+
+            #in bin count from start of trial when the kernel begins
+            stim_start = stim_times[trial] - trial_start - 0.05
+            stim_start = floor(stim_start/bin_size)
+            
+            stim_end = int( stim_start + (0.45/bin_size) )
+
+            #  Left Low Contrast
+            if Leftcontrasts[trial] == 0.25:
+                visionkernel = make_kernel(visionkernel, stim_start, stim_end,
+                                           L_start =0, L_stop = 90, coef = 1)
+            # Left Medium Contrast
+            if Leftcontrasts[trial] == 0.5:
+                visionkernel = make_kernel(visionkernel, stim_start, stim_end,
+                                           L_start =90, L_stop = 180, coef = 1)
+            #Left High Contrast
+            if Leftcontrasts[trial] == 1.0:
+                visionkernel = make_kernel(visionkernel, stim_start, stim_end,
+                                           L_start =180, L_stop = 270, coef = 1)
+            
+            # Right Low Contrat
+            if Rightcontrasts[trial] == 0.25:
+                visionkernel = make_kernel(visionkernel, stim_start, stim_end,
+                                           L_start =270, L_stop = 360, coef = 1)
+            # Right Medium Contrast
+            if Rightcontrasts[trial] == 0.5:
+                visionkernel = make_kernel(visionkernel, stim_start, stim_end,
+                                           L_start =450, L_stop = 540, coef = 1)
+            # Right High Contrast
+            if Rightcontrasts[trial] == 1.0:
+                visionkernel = make_kernel(visionkernel, stim_start, stim_end,
+                                           L_start =540, L_stop = 630, coef = 1)
+        
+        ##### Movement Kernel
+        if kernel[1]==True:
+            
+                
+                
+                
+            
+            
+
+        #movement kernel 
+        """
+        the Action and Choice kernels are supported over the window −0.25 
+        to 0.025 s relative to movement onset. 
+        """
+        
+        #choice kernel, postive for right and negative for left
+        """
+        the Action and Choice kernels are supported over the window −0.25 
+        to 0.025 s relative to movement onset. 
+        """
+        
         
         return(X_trial_i)
     
     
     return(X)
 
+
+####NOTE FROM ABHJIT JUST PREDICT BEHAVIOUR, use that body publication
 
 #the model is calculated neuron by neuron using a reduced representation 
 # across 
