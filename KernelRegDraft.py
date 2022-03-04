@@ -31,6 +31,7 @@ import timeit #for testing and tracking run times
 import scipy.stats 
 os.chdir('C:/Users/angus/Desktop/SteinmetzLab/Analysis')
 import getSteinmetz2019data as stein
+import warnings
 
 
 start = timeit.timeit()
@@ -613,7 +614,7 @@ def make_toeplitz_matrix(session, bin_size,
             will be changed for right choice kernels to -1
             
             """
-           
+            
             kernel_length = L_stop-L_start
             kernel = np.diag(np.ones(kernel_length))*coef
             trialkernel[T_start:T_stop, L_start:L_stop] = kernel
@@ -690,8 +691,8 @@ def make_toeplitz_matrix(session, bin_size,
             move_start = floor(move_start/bin_size)
             
             # move_end at +.45s/binsize because movement kernel k_d covers...
-            #  -0.25s >= movement start time =< 0.25s therefore...
-            move_end = ceil( move_start + (0.5/bin_size) )
+            #  -0.25s >= movement start time =< 0.025s therefore...
+            move_end = int( move_start + (0.275/bin_size) )
             
             if responsechoice[trial]!=0:
                 #add contrast to our matrix if there is no movement
@@ -713,9 +714,10 @@ def make_toeplitz_matrix(session, bin_size,
             move_start = floor(move_start/bin_size)
             
             # move_end at +.45s/binsize because movement kernel k_d covers...
-            #  -0.25s >= movement start time =< 0.25s therefore...
-            move_end = ceil( move_start + (0.5/bin_size) )
+            #  -0.25s >= movement start time =< 0.025s therefore...
+            move_end = ceil( move_start + (0.275/bin_size) )
             
+            ##!!!! this is causing an error needs testing
             #add contrast to our matrix
             #Left Choice Kernel contrast = 1 along diagonal aligned to movement start
             if responsechoice[trial]==1:
@@ -727,6 +729,24 @@ def make_toeplitz_matrix(session, bin_size,
                 # so here we set coef to -1
                 choicekernel = make_kernel(choicekernel, move_start, move_end,
                                            L_start = 0, L_stop = 55, coef = -1)
+        
+        # Stitiching kernels together and warning about how kernel should be given
+        
+        def kernel_improperly_spcified():
+            warnings.warn(
+                "kernel must be input including vision kernel, also you cannot\
+                include choice kernel without action kernel."
+        )
+        
+        if kernel[0]&kernel[1]&kernel[2]:
+            X_trial_i = np.column_stack([visionkernel , actionkernel, choicekernel])
+        elif kernel[0]&kernel[1]:
+            X_trial_i = np.column_stack([visionkernel , actionkernel])
+        elif kernel[0]&kernel[1]:
+            X_trial_i = visionkernel
+        else:
+            kernel_improperly_spcified()
+            
         
         return(X_trial_i)
     
