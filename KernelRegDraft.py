@@ -563,6 +563,7 @@ def make_toeplitz_matrix(session, bin_size,
                                      ['trials.intervals.npy',
                                       'trials.included.npy',
                                       'trials.response_choice.npy',
+                                      'trials.response_times.npy',
                                       'trials.visualStim_contrastLeft.npy',
                                       'trials.visualStim_contrastRight.npy',
                                       'trials.visualStim_times.npy'],
@@ -574,6 +575,8 @@ def make_toeplitz_matrix(session, bin_size,
     Leftcontrasts = fetched_objects['trialsvisualStim_contrastLeft'][include]
     Rightcontrasts = fetched_objects['trialsvisualStim_contrastRight'][include]
     stim_times = fetched_objects['trialsvisualStim_times'][include]
+    responsechoice = fetched_objects['trialsresponse_choice'][include]
+    responsetimes = fetched_objects['trialsresponse_times'][include]
     
     
     # the vision kenels, L_c, are supported for -0.05 to 0.4 post stimulus onset
@@ -601,6 +604,20 @@ def make_toeplitz_matrix(session, bin_size,
             should be specified beforehand if this is run in make_toeplitz_matrix()
         
         """
+        
+        def make_kernel(trialkernel, T_start, T_stop,
+                        L_start, L_stop, coef = 1):
+            """
+            Creates an np.diag array and replaces the provided the specified 
+            indices of  trialkernel with this array, coef is by default 1 but
+            will be changed for right choice kernels to -1
+            
+            """
+           
+            kernel_length = L_stop-L_start
+            kernel = np.diag(np.ones(kernel_length))*coef
+            trialkernel[T_start:T_stop, L_start:L_stop] = kernel
+            return trialkernel
 
         
         #here the timesteps are length and each kernel is hieght
@@ -628,6 +645,8 @@ def make_toeplitz_matrix(session, bin_size,
             stim_start = stim_times[trial] - trial_start - 0.05
             stim_start = floor(stim_start/bin_size)
             
+            # stim_end at +.45s/binsize because vision kernel k_c covers...
+            #  -0.05s >= stimulation start time =< 0.4s therefore...
             stim_end = int( stim_start + (0.45/bin_size) )
 
             #  Left Low Contrast
@@ -657,26 +676,57 @@ def make_toeplitz_matrix(session, bin_size,
                                            L_start =540, L_stop = 630, coef = 1)
         
         ##### Movement Kernel
+        """
+        the Action and Choice kernels are supported over the window −0.25 
+        to 0.025 s relative to movement onset. 
+        """
         if kernel[1]==True:
             
-                
-                
-                
+            # instantiate matrix
+            actionkernel = np.zeros((T_trial, 55), dtype = int)
             
+            #when movementstarts
+            move_start = responsetimes[trial] - trial_start - 0.25
+            move_start = floor(move_start/bin_size)
             
-
-        #movement kernel 
+            # move_end at +.45s/binsize because movement kernel k_d covers...
+            #  -0.25s >= movement start time =< 0.25s therefore...
+            move_end = ceil( move_start + (0.5/bin_size) )
+            
+            if responsechoice[trial]!=0:
+                #add contrast to our matrix if there is no movement
+                actionkernel = make_kernel(actionkernel, move_start, move_end,
+                                             L_start = 0, L_stop = 55, coef =1)
+       
+        #Choice Kernel
         """
         the Action and Choice kernels are supported over the window −0.25 
         to 0.025 s relative to movement onset. 
         """
-        
-        #choice kernel, postive for right and negative for left
-        """
-        the Action and Choice kernels are supported over the window −0.25 
-        to 0.025 s relative to movement onset. 
-        """
-        
+        if kernel[2]==True:
+            
+            # instantiate matrix
+            choicekernel = np.zeros((T_trial, 55), dtype = int)
+            
+            #when movementstarts
+            move_start = responsetimes[trial] - trial_start - 0.25
+            move_start = floor(move_start/bin_size)
+            
+            # move_end at +.45s/binsize because movement kernel k_d covers...
+            #  -0.25s >= movement start time =< 0.25s therefore...
+            move_end = ceil( move_start + (0.5/bin_size) )
+            
+            #add contrast to our matrix
+            #Left Choice Kernel contrast = 1 along diagonal aligned to movement start
+            if responsechoice[trial]==1:
+                #Left choice
+                choicekernel = make_kernel(choicekernel, move_start, move_end,
+                                           L_start = 0, L_stop = 55, coef = 1)
+            if responsechoice[trial]==-1:
+                #Right choice Kernel contrast = 1 along diagonal aligned to movement start
+                # so here we set coef to -1
+                choicekernel = make_kernel(choicekernel, move_start, move_end,
+                                           L_start = 0, L_stop = 55, coef = -1)
         
         return(X_trial_i)
     
