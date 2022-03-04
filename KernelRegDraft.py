@@ -176,7 +176,7 @@ def frequency_array(session, bin_size,
         THIS SECTION MAY BE UNNESCESSARY
         
         """
-       
+
         #We call the relvant objects for clusters (neurons) identity of a firing
         #the time at which a firing occured and the quality of the recording
         spikes = stein.calldata(session, ['spikes.clusters.npy',
@@ -190,25 +190,29 @@ def frequency_array(session, bin_size,
         #each cluster, match it with spikestimes to get timing and identity info
         spikestimes = spikes['spikestimes'] #times corresponding to clusters firing
         
-        # by default remove clusters wiht a rating of 1 
-        if quality_annotation_filter:
+        # by default remove clusters wiht a rating of 1
+        if len(only_use_these_clusters)!=0:
+            #finds the clusters in the time series with bad quality (q<2) and removes them
+            #from the series holding when a spike occured and what it's identity was
+            clusters_mask = np.isin(spikesclusters, only_use_these_clusters) #boolean mask
+            spikestimes = spikestimes[clusters_mask] 
+            spikesclusters = spikesclusters[clusters_mask]
+            clusters_idx = np.unique(spikesclusters)
+        elif quality_annotation_filter:
             clusterquality = spikes['clusters_phy_annotation'] #quality rating of clsuters
             clusters_idx = np.arange(0, len(clusterquality)).reshape(clusterquality.shape)
             clusters_mask = clusterquality >=2 #boolean mask
-            clusters_idx = clusters_idx[clusters_mask] #filter out low qualit clusters
+            clusters_idx = clusters_idx[clusters_mask]
+             #filter out low quality clusters
             
-            #remove those clusters from the time series
+            #remove those clusters from the time series, here we do it with np.isin
             spikestimes = spikestimes[np.isin(spikesclusters, clusters_idx)] 
             spikesclusters = spikesclusters[np.isin(spikesclusters, clusters_idx)]
+            clusters_idx = np.unique(spikesclusters)
+        
 
         # if provided clusters to use instead....
-        if len(only_use_these_clusters)!=0:
-            #finds the clusters in the time series with bad quality (q<2) and removes them
-            #from the series holding when a pike occured and what it's identity was
-            cluster_mask = np.isin(spikesclusters, only_use_these_clusters) #boolean mask
-            spikestimes = spikestimes[cluster_mask] 
-            spikesclusters = spikesclusters[cluster_mask]
-            clusters_idx = np.unique(spikesclusters)
+
             
         return(spikesclusters, spikestimes, clusters_idx )
     
@@ -222,26 +226,29 @@ def frequency_array(session, bin_size,
     
     
     # filter by the engagfement index filter provided is set tp ture by default
-    # alternately a filter may be supplied
-    if filter_by_engagement:
-        trialsincluded = trials['trialsincluded']
-    
+    # alternately a list of trials to include may be supplied
     # Supplying this filter overwrites the engagement-index
     if len(select_trials)!=0:
         trialsincluded = select_trials
+    elif filter_by_engagement:
+        trialsincluded = trials['trialsincluded']
+    
+
     
     # filter trialsintervals by trialsincluded
+    trialsintervals = trials['trialsintervals']
     trialsintervals = trialsintervals[trialsincluded,:]
     
     #this will be our output
     session_arr = np.zeros([len(np.unique(clusters)),2], dtype=float)
     
-    #trials starts are trialintervals[, 0]
-    #trial ends are trialintervals[, 0]
-    for trial in range(0,trialintervals.shape[0]):
+    #trials starts are trialsintervals[, 0]
+    #trial ends are trialsintervals[, 0]
+    for trial in range(0,trialsintervals.shape[0]):
+
         #find out number of step in the trial
-        n_steps = ceil((trialintervals[trial,1]-trialintervals[trial,0])/bin_size)
-        t_i = trialintervals[trial,0]
+        n_steps = ceil((trialsintervals[trial,1]-trialsintervals[trial,0])/bin_size)
+        t_i = trialsintervals[trial,0]
         t_plus_dt = t_i + bin_size
         trial_arr = np.zeros([len(np.unique(clusters)),2], dtype=float) # will be concatenated
         
@@ -259,9 +266,14 @@ def frequency_array(session, bin_size,
             (unique, counts) = np.unique(clusters[this_bin], return_counts=True)
             frequencies = np.asarray((unique, counts/bin_size))
 
-            
+            #This runs if there are no spikes, i.e. frequency array has 2nd dim = 0
+            if frequencies.shape[1]==0:
+                bin_arr = np.zeros([trial_arr.shape[0],1])
+                trial_arr = np.column_stack([trial_arr, bin_arr])
+                
             j = 0 #initializing and index to move down frequncy 2d frequency values array with
             for neuron in frequencies[0,]:
+                print(neuron)
 
                 ### !!!!
                 ####!!!! there is an error in this loop
@@ -549,7 +561,7 @@ def make_toeplitz_matrix(session, bin_size,
 
 
 ############# ACTUALLY RUNNING THE CODE AND KERNEL REG
-
+"""
 start = timeit.timeit()
 #These trials selected because they contain all types of choices, left 2 rights then a no go
 # [4,5,6,7]
@@ -565,13 +577,14 @@ P = make_toeplitz_matrix(session = 'Theiler_2017-10-11',
                      )
 
 """
-
+"""
 It's worth noting that even at a full session length P runs no problem
 
 P = make_toeplitz_matrix(session = 'Theiler_2017-10-11', 
                      bin_size = 0.005, 
                      kernels = [True, True, True]
                      )
+"""
 """
 
 end= timeit.timeit()
@@ -582,7 +595,7 @@ import seaborn as sns
 
 sns.heatmap(P)
 
-"""
+
 #How test spikes were selected...
 list_of = ['spikes.clusters.npy',
                           'spikes.times.npy',
@@ -608,22 +621,25 @@ clusters_idx = clusters_idx[clusters_mask] #filter out low quality clusters
 clusters_idx[0:10]
 
 only_use_these_clusters=[ 3,  4,  7,  9, 12, 14, 16, 17, 18, 19]
-"""
+
 start = time.it()
 # only use these clusters includes first 10 clusters in clusters_idx that pass quality
 Y, clusters_index = frequency_array(session = 'Theiler_2017-10-11', 
                                     bin_size = 0.005, 
                                     only_use_these_clusters=[ 3,  4])
 """
+"""
 Traceback (most recent call last):
 
-  File "<ipython-input-3-c46d16d81243>", line 1, in <module>
+  File "<ipython-input-2-c46d16d81243>", line 1, in <module>
     Y, clusters_index = frequency_array(session = 'Theiler_2017-10-11',
 
-  File "<ipython-input-1-6ada96e8e5de>", line 204, in frequency_array
-    trialsintervals = trialsintervals[trialsincluded,:]
+  File "<ipython-input-1-300e6dc231fa>", line 239, in frequency_array
+    n_steps = ceil((trialsintervals[trial,1]-trialsintervals[trial,0])/bin_size)
 
-UnboundLocalError: local variable 'trialsintervals' referenced before assignment
+IndexError: index 1 is out of bounds for axis 1 with size 1
+"""
+
 
 """
 
@@ -643,7 +659,7 @@ print(start - end)
 
 
 
-
+"""
 
 
 ####NOTE FROM ABHJIT JUST PREDICT BEHAVIOUR, use that body publication
@@ -653,7 +669,7 @@ print(start - end)
 
 
     #need to be making index of columns as well
-    """
+"""
     FINDING THE CHANNELS ABA-Ontollogy Location
     
     def fetch_channel_locations(session):
@@ -685,13 +701,13 @@ print(start - end)
     Session_cluster#_in_the_ABAlocation                         
     Example: Forssmann_2017-11-01_Cluster1738_in_the_CA1
     
-    """
+"""
     
-            """
+"""
             FROM Methods - KERNEL REGRESSION ANALYSIS
             'For the current study, only visual stimulus onset and wheel 
             movement onset kernels were required,'              
-            """      
+"""      
                     
                 
 
@@ -719,7 +735,7 @@ print(start - end)
     
 
     
-
+"""
 
         
 df = pd.DataFrame(np.arange(10).reshape(-1, 2), columns=['A', 'B'])   
@@ -733,7 +749,7 @@ m = df % 3 == 0
     
     
 test = unique(spikes['spikes.'])
-    
+"""    
     
 
 """
@@ -826,7 +842,7 @@ CXXMH = CXX ^ -0.5;
 """
 
 # could use this: https://scikit-learn.org/stable/modules/generated/sklearn.cross_decomposition.CCA.html
-import sklearn.cross_decomposition
+#import sklearn.cross_decomposition
 
 
 #use CCA in cross validated regularized regression
