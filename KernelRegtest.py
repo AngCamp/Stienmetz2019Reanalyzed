@@ -18,6 +18,37 @@ import warnings
 import KernelRegDraft as kreg
 import sklearn
 
+
+#As abjit discussed, these papers are relevant
+# It would be nice to show trial history effects on current decisions 
+"""
+    Urai, A. E., de Gee, J. W., & Donner, T. H. (2018). Choice history biases subsequent evidence accumulation. bioRxiv, 251595.
+-shows across various modalities that drift bias is a better fit for data than a shifted starting point
+
+Athena Akrami, Charles D. Kopec, Mathew Diamond, and Carlos D. Brody, Posterior parietal cortex represents sensory history and mediates its effects on behaviour. Nature, 2018
+"""
+"""
+For use_only_these_clsuters chose from the first 10 clsuters passing annotation
+ threshold for quality.
+ 
+ These are the fist 10 from Theiler_2017-10-11
+ foudn via....
+ spikes = stein.calldata('Theiler_2017-10-11', ['spikes.clusters.npy',
+                          'spikes.times.npy',
+                          'clusters._phy_annotation.npy'],
+                steinmetzpath=FILEPATH)
+ 
+ anot = spikes['clusters_phy_annotation']
+ clust = spikes['spikesclusters']
+ clust = unique(clust)
+ test = clust[anot.reshape(clust.shape)>=2]
+ 
+ returning...
+ array([ 3,  4,  7,  9, 12, 14, 16, 17, 18, 19])
+ 
+ The trials chosed were the first to contain a no-go, left and right
+ animals responses were not factored in
+"""
 start = timeit.timeit()
 #These trials selected because they contain all types of choices, left 2 rights then a no go
 # [4,5,6,7]
@@ -36,6 +67,17 @@ P = kreg.make_toeplitz_matrix(session = 'Theiler_2017-10-11',
 end= timeit.timeit()
 print(start-end)
 
+start = timeit.timeit()
+P = kreg.make_toeplitz_matrix(session = 'Theiler_2017-10-11', 
+                     bin_size = 0.005, 
+                     kernels = [True, True, True],
+                     select_trials=np.array([4,5,6,7])
+                     )
+end= timeit.timeit()
+print(start-end)
+
+
+
 import KernelRegDraft as kreg
 start = timeit.timeit()
 # only use these clusters includes first 10 clusters in clusters_idx that pass quality
@@ -47,6 +89,26 @@ Y, clusters_index = kreg.frequency_array(session = 'Theiler_2017-10-11',
 end= timeit.timeit()
 print(start-end)
 
+#again with more cl"usters, 
+"""interesting this throws an error from line 240
+
+Traceback (most recent call last):
+
+  File "<ipython-input-6-ab242de04e4f>", line 3, in <module>
+    Y, clusters_index = kreg.frequency_array(session = 'Theiler_2017-10-11',
+
+  File "C:\Users\angus\Desktop\SteinmetzLab\Analysis\KernelRegDraft.py", line 240, in frequency_array
+    trialsintervals = trialsintervals[trialsincluded,:]
+
+IndexError: too many indices for array: array is 2-dimensional, but 3 were indexed"""
+start = timeit.timeit()
+# only use these clusters includes first 10 clusters in clusters_idx that pass quality
+Y, clusters_index = kreg.frequency_array(session = 'Theiler_2017-10-11', 
+                                    bin_size = 0.005, 
+                                    only_use_these_clusters=[ 3,  4,  7,  9, 12, 14, 16, 17, 18, 19]
+                                    )
+end= timeit.timeit()
+print(start-end)
 
 ### Making b
 # CCA between P and Y to get b
@@ -57,6 +119,10 @@ sklearn.cross_decomposition.CCA(n_components=2, *,
                                 copy=True)
 #Test
 from sklearn.cross_decomposition import CCA
+
+#could use make regression to simulate data
+#X, y = make_regression(n_features=2, random_state=0)
+
 Xtest = [[0., 0., 1.], [1.,0.,0.], [2.,2.,2.], [3.,5.,4.]]
 Ytest = [[0.1, -0.2], [0.9, 1.1], [6.2, 5.9], [11.9, 12.3]]
 cca = CCA(n_components=2)
