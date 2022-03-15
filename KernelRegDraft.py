@@ -232,6 +232,8 @@ def frequency_array(session, bin_size,
         trialsincluded = select_trials
     elif filter_by_engagement:
         trialsincluded = trials['trialsincluded']
+        trialsincluded = [ i for i in range(0,len(trialsincluded)) if trialsincluded[i]]
+        trialsincluded = np.array(trialsincluded)
     
 
     
@@ -273,7 +275,7 @@ def frequency_array(session, bin_size,
                 
             j = 0 #initializing and index to move down frequncy 2d frequency values array with
             for neuron in frequencies[0,]:
-                print(neuron)
+
 
                 ### !!!!
                 ####!!!! there is an error in this loop

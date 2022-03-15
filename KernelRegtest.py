@@ -26,6 +26,15 @@ import sklearn
 -shows across various modalities that drift bias is a better fit for data than a shifted starting point
 
 Athena Akrami, Charles D. Kopec, Mathew Diamond, and Carlos D. Brody, Posterior parietal cortex represents sensory history and mediates its effects on behaviour. Nature, 2018
+
+Also relevant highly relevant:
+    Edward H. Nieh, Manuel Schottdorf, Nicolas W. Freeman, Ryan J. Low,
+    Sam Lewallen, Sue Ann Koay, Lucas Pinto, Jeffrey L. Gauthier, Carlos D. Brody
+    & David W. Tank, Geometry of abstract learned knowledge in the hippocampus, 
+    Nature 2021.
+
+https://www.nature.com/articles/s41586-021-03652-7?WT.ec_id=NATURE-202106&sap-outbound-id=DBB1ED36DA74022A92B31BD53A1EE0017E8112F2
+
 """
 """
 For use_only_these_clsuters chose from the first 10 clsuters passing annotation
@@ -33,10 +42,12 @@ For use_only_these_clsuters chose from the first 10 clsuters passing annotation
  
  These are the fist 10 from Theiler_2017-10-11
  foudn via....
- spikes = stein.calldata('Theiler_2017-10-11', ['spikes.clusters.npy',
+ pathforus = os.fspath(r'C:\Users\angus\Desktop\SteinmetzLab\9598406\spikeAndBehavioralData\allData')
+
+ spikesderp = stein.calldata('Theiler_2017-10-11', ['spikes.clusters.npy',
                           'spikes.times.npy',
                           'clusters._phy_annotation.npy'],
-                steinmetzpath=FILEPATH)
+                steinmetzpath= pathforus)
  
  anot = spikes['clusters_phy_annotation']
  clust = spikes['spikesclusters']
@@ -48,6 +59,12 @@ For use_only_these_clsuters chose from the first 10 clsuters passing annotation
  
  The trials chosed were the first to contain a no-go, left and right
  animals responses were not factored in
+ 
+ 
+ Also this may be worth a read:
+     Wikle, C. K. (2015). Modern perspectives on statistics for spatio‐temporal data. Wiley Interdisciplinary Reviews: Computational Statistics, 7(1), 86-98.
+     
+     
 """
 start = timeit.timeit()
 #These trials selected because they contain all types of choices, left 2 rights then a no go
@@ -89,18 +106,35 @@ Y, clusters_index = kreg.frequency_array(session = 'Theiler_2017-10-11',
 end= timeit.timeit()
 print(start-end)
 
+pathforus = os.fspath(r'C:\Users\angus\Desktop\SteinmetzLab\9598406\spikeAndBehavioralData\allData')
+
+trialstest = stein.calldata('Theiler_2017-10-11', ['trials.intervals.npy',
+                                      'trials.included.npy'],
+                steinmetzpath=pathforus)
+
+#select_these = np.array([4,5,6,7])
+select_these = []
+
+if len(select_these)!=0:
+    trialsincludedtest = select_these
+elif True:   #filter by engagement
+    trialsincludedtest = trialstest['trialsincluded']
+
+[ i for i in range(0,len(trialsincluded)) if trialsincluded[i]]
+
+trialsintervalstest = trialstest['trialsintervals']
+trialsintervalstest = trialsintervalstest[trialsincludedtest,:]
+
+trialsintervalstest = trialstest['trialsintervals']
+trialsintervalstest = trialsintervalstest[trialsincludedtest.reshape(trialsintervalstest.shape),:]
+
+
 #again with more cl"usters, 
-"""interesting this throws an error from line 240
+"""
+Fixed the last error but now it's printing out the clusters for some weird reason'
 
-Traceback (most recent call last):
 
-  File "<ipython-input-6-ab242de04e4f>", line 3, in <module>
-    Y, clusters_index = kreg.frequency_array(session = 'Theiler_2017-10-11',
-
-  File "C:\Users\angus\Desktop\SteinmetzLab\Analysis\KernelRegDraft.py", line 240, in frequency_array
-    trialsintervals = trialsintervals[trialsincluded,:]
-
-IndexError: too many indices for array: array is 2-dimensional, but 3 were indexed"""
+"""
 start = timeit.timeit()
 # only use these clusters includes first 10 clusters in clusters_idx that pass quality
 Y, clusters_index = kreg.frequency_array(session = 'Theiler_2017-10-11', 
