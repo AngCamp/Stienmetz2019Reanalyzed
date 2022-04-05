@@ -55,7 +55,7 @@ BASIC IDEA:
 subiculum and lateral (medial?) septum before some regions in striatum
 becomes active (clear this up)
 
-Try to realte this to the concept of urgecny described here:
+Try to relate this to the concept of urgecny described here:
     Thura, D., & Cisek, P. (2017). The basal ganglia do not select reach 
     targets but control the urgency of commitment. Neuron, 95(5), 1160-1170.
     https://www.sciencedirect.com/science/article/pii/S0896627317306876
@@ -184,8 +184,8 @@ sum(tatumclusters.quality[tatumclusters.allen_ontollogy=='CA3']>1)
 
 #all times are recorded in seconds
 
-for sesh in stein.recording_key():
-    
+#for sesh in stein.recording_key():
+# this loop is not ready yet  
     sesh = tate
     trials = stein.calldata(tate, ['trials.visualStim_contrastLeft.npy',
                                        'trials.visualStim_contrastRight.npy',
