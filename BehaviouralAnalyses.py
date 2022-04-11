@@ -15,6 +15,12 @@ Akrami, A., Kopec, C. D., Diamond, M. E., & Brody, C. D. (2018).
 
  Espescially relevant is extended data 6 where they describe other models to the one they found was the best fit.
  https://www.nature.com/articles/nature25510/figures/10
+
+Hidden Markov model incorperation engagement and reinforcement bias on a trial by trial level:
+
+Ashwood, Z. C., Roy, N. A., Stone, I. R., Urai, A. E., Churchland, A. K., Pouget, A., & Pillow, J. W. (2022). 
+Mice alternate between discrete strategies during perceptual decision-making. Nature Neuroscience, 25(2), 201-212.
+
 """
 
 #CODE GOES HERE
@@ -41,6 +47,7 @@ Worth reading as well:
 Zabeh, E., Foley, N. C., Jacobs, J., & Gottlieb, J. P. (2022). 
 Traveling waves in the monkey frontoparietal network predict recent reward memory. bioRxiv.
 https://www.biorxiv.org/content/10.1101/2022.02.03.478583v1.abstract
+
 
 
 """
