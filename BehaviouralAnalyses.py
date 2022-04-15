@@ -1,8 +1,11 @@
 """"
 The purpose of this script is to analyze the behaviour of the animals specifically looking for effects described
-in Lak et al., (2020) as well as Akrami et al., (2018).  The behaviour in described how previous reinforcement of correct trials results in the
-choice of a particular stimuli on hard trials.  We can easilt train and estimate such effects for mice.
-
+in Lak et al., (2020) as well as Akrami et al., (2018).  Both publications show how previous reinforcement of correct trials results in the
+choice of a particular stimuli on hard trials.  We can easily train and estimate such effects for mice.
+In difficult trials mice tend to rely on previously reinforced decisions, this effect appears across a number of 
+tasks in a variety of species (Lak et a., 2020).  Recent evidence is favored (Akrami et al., 2018) and 
+behavioural states will fluctuate throughout a tasks run (Ashwood et al., 2020).  We can start with simpler analyses
+and move on to more complex models if we want to explore these effects in more detail.
 
 
 Lak, A., Hueske, E., Hirokawa, J., Masset, P., Ott, T., Urai, A. E., ... & Kepecs, A. (2020).
@@ -20,10 +23,21 @@ Hidden Markov model incorperation engagement and reinforcement bias on a trial b
 
 Ashwood, Z. C., Roy, N. A., Stone, I. R., Urai, A. E., Churchland, A. K., Pouget, A., & Pillow, J. W. (2022). 
 Mice alternate between discrete strategies during perceptual decision-making. Nature Neuroscience, 25(2), 201-212.
+-this was done by the IBL so may be of most use to us
 
 """
 
 #CODE GOES HERE
+#librarries
+import pandas as pd
+import numpy as np
+import os
+import scikit.learn
+import KernelRegDraft as kreg
+import getSteinmetz2019data as stein
+
+FILEPATH = 
+
 
 
 
