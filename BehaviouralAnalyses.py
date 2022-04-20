@@ -28,7 +28,7 @@ Mice alternate between discrete strategies during perceptual decision-making. Na
 """
 
 #CODE GOES HERE
-#librarries
+#libraries
 import pandas as pd
 import numpy as np
 import os
@@ -36,7 +36,69 @@ import scikit.learn
 import KernelRegDraft as kreg
 import getSteinmetz2019data as stein
 
-FILEPATH = 
+#setting a filepath up
+# NINC_filepath = find this out
+# command to start python REPL in visual code is 'ctrl + r' then 'ctrl + p' 
+anguslocal_filepath = os.fspath(r'C:\Users\angus\Desktop\SteinmetzLab\9598406\spikeAndBehavioralData\allData')
+
+FILEPATH = anguslocal_filepath
+
+# 1) LOOK FOR BIAS WITH A SIMPLE ANALYSIS
+# Look for effect with linear model of engagement index and trial difficulty on bias
+
+
+
+
+
+
+
+# 2) TRIAL HISTORY EFFECTS
+# Akrami model
+
+
+
+
+
+
+
+# 3) TRIAL BY TRIAL PREDICTION OF THESE STRATEGIES
+# A) for removal and focusing on engaged trials
+# B) for 
+
+
+
+"""
+# IMPLEMENTING ASHWOOD
+# while I cannot use the same optimizations I should be able to build the same testing procedures
+# python library to impliment HMM-GLM
+
+https://github.com/janclemenslab/pyGLMHMM
+
+-the writers of that repo rcomend using this repo....
+https://github.com/lindermanlab/ssm
+...and provide code below to implement it
+
+as well as this line of code that shows how to use it....
+true_glmhmm = ssm.HMM(num_states, obs_dim, input_dim, 
+                      observations="input_driven_obs", 
+                      observation_kwargs=dict(C=num_categories),
+                      transitions="inputdriven")
+
+And a notebook detailing GLM-HMM, written by Zoe Ashwood, author of the other study
+https://github.com/lindermanlab/ssm/blob/master/notebooks/2b%20Input%20Driven%20Observations%20(GLM-HMM).ipynb
+
+GLM-HMM is described in this paper: 
+Calhoun, A. J., Pillow, J. W., & Murthy, M. (2019). 
+Unsupervised identification of the internal states that shape natural behavior. 
+Nature neuroscience, 22(12), 2040-2049.
+-this is also cited in Ashwood et al., (2022)
+
+
+
+
+"""
+
+
 
 
 
