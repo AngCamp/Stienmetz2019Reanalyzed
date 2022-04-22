@@ -25,6 +25,10 @@ Ashwood, Z. C., Roy, N. A., Stone, I. R., Urai, A. E., Churchland, A. K., Pouget
 Mice alternate between discrete strategies during perceptual decision-making. Nature Neuroscience, 25(2), 201-212.
 -this was done by the IBL so may be of most use to us
 
+
+Psychometric Curves for the mixed 2AFC-go-no-go task
+https://www.nature.com/articles/s41586-019-1787-x/figures/6
+
 """
 
 #CODE GOES HERE
