@@ -18,6 +18,12 @@ Akrami, A., Kopec, C. D., Diamond, M. E., & Brody, C. D. (2018).
 
  Espescially relevant is extended data 6 where they describe other models to the one they found was the best fit.
  https://www.nature.com/articles/nature25510/figures/10
+ https://www.nature.com/articles/nature25510/figures/2
+
+ -constraining the models so the weights for the long and 2-trial back history are equal to 1 
+ gets much better performance
+
+How to do this:  https://www.ibm.com/support/pages/how-constrain-2-or-more-parameters-within-group-be-equal
 
 Hidden Markov model incorperation engagement and reinforcement bias on a trial by trial level:
 

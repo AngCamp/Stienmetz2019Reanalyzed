@@ -97,11 +97,15 @@ https://opendatascience.com/an-introduction-to-object-oriented-data-science-in-p
 
 """
 
+# Instructions for running python interactive mode
+# https://www.youtube.com/watch?v=lwN4-W1WR84
+# %%
 #import onelight as one
 import os
 import numpy as np
 import pandas as pd
 
+# %%
 #for ubuntu....
 #cd mnt/c/Users/angus/Desktop/SteinmetzLab/Analysis 
 
@@ -112,7 +116,8 @@ datapath = os.fspath(r'C:\Users\angus\Desktop\SteinmetzLab\9598406\spikeAndBehav
 
 #finding all the unique locations in a recording
 tate = 'Tatum_2017-12-09'
-
+print(tate)
+# %%
 
 def fetch_channel_locations(session):
     """
@@ -127,6 +132,7 @@ def fetch_channel_locations(session):
 
 tatumlocations = fetch_channel_locations(tate)
 
+# %%
 
 ########
 """
@@ -156,7 +162,22 @@ tatumchannel_df = pd.DataFrame({'allen_ontology':list(tatumchannel['channelsbrai
               'rawRow':list(tatumchannel['channelsrawRow']), 
               'probe':list(tatumchannel['channelsprobe'])})
 
+# %%
 
+
+tatumchannel_df.shape
+tatumchannel_df.loc[ tatumchannel_df.allen_ontology=="CA3"  , "site"]
+
+# %%
+print(os.getcwd())
+
+probetiming = stein.calldata(tate, ['Tatum_2017-12-09_K3_g0_t0.imec.lf.timestamps.npy'], 
+                        steinmetzpath= datapath, propertysearch = False)
+
+probetiming.keys()
+#probetiming <- np.load(tate + "Tatum_2017-12-09_K3_g0_t0.imec.lf.timestamps.npy") 
+#probetiming
+# %%
 """
 
 We are trying to extract the allen ontology row from the tatumchannel_df 
