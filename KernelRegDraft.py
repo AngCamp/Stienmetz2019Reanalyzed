@@ -43,7 +43,7 @@ import piso
 
 # From the local path on Angus's PC, toeplitz and freq_array,
 # use this as the default consider changing
-DEFAULT_FILEPATH = os.fspath(r'C:\Users\angus\Desktop\SteinmetzLab\9598406\spikeAndBehavioralData\allData')
+
 
 
 
@@ -134,7 +134,7 @@ def frequency_array(session, bin_size,
                     quality_annotation_filter = True,
                     select_trials = [],
                     filter_by_engagement = True,
-                    FILEPATH = DEFAULT_FILEPATH):
+                    FILEPATH):
     """
     Input:
         session:  the name of the desired session, we take it and generate....
@@ -317,7 +317,7 @@ def make_toeplitz_matrix(session,
                          kernels, 
                          filter_by_engagement = True, 
                          select_trials = [],
-                         FILEPATH = DEFAULT_FILEPATH):
+                         FILEPATH):
     """
     Makes the matrix X aka P in Steinmetz et al., (2019), the Toeplitz matrix of
     dimension.  THe kernel is either 0 or 1 or -1
