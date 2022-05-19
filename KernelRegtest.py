@@ -22,7 +22,10 @@ import sklearn
 # %%
 import KernelRegDraft as kreg
 
-
+#path on Angus Laptop
+# path_to_data = os.fspath(r'C:\Users\angus\Desktop\SteinmetzLab\9598406\spikeAndBehavioralData\allData\')
+#for path on the NINC desktop
+path_to_data =  os.fspath(r'/home/ninc-user/Desktop/9598406/spikeAndBehavioralData/allData/')
 # %%
 
 
@@ -85,6 +88,7 @@ start = timeit.timeit()
 P = kreg.make_toeplitz_matrix(session = 'Theiler_2017-10-11', 
                      bin_size = 0.005, 
                      kernels = [True, True, True],
+                     filepath = path_to_data,
                      select_trials=np.array([4,5,6,7])
                      )
 

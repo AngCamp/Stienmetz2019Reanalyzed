@@ -129,12 +129,11 @@ def halfgaussian_filter1d(input, sigma, axis=-1, output=None,
 
 #now we can make the function that will generate our Y matrix, the firing rates to predict
 #based on our kernels
-def frequency_array(session, bin_size, 
+def frequency_array(session, bin_size, filepath,
                     only_use_these_clusters=[],
                     quality_annotation_filter = True,
                     select_trials = [],
-                    filter_by_engagement = True,
-                    FILEPATH):
+                    filter_by_engagement = True):
     """
     Input:
         session:  the name of the desired session, we take it and generate....
@@ -185,7 +184,7 @@ def frequency_array(session, bin_size,
         spikes = stein.calldata(session, ['spikes.clusters.npy',
                                   'spikes.times.npy',
                                   'clusters._phy_annotation.npy'],
-                        steinmetzpath=FILEPATH)
+                        steinmetzpath=filepath)
         
         
         
@@ -225,7 +224,7 @@ def frequency_array(session, bin_size,
     #getting thetrials objects we need
     trials = stein.calldata(session, ['trials.intervals.npy',
                                       'trials.included.npy'],
-                steinmetzpath=FILEPATH)
+                steinmetzpath=filepath)
     
     
     # filter by the engagfement index filter provided is set tp ture by default
@@ -280,9 +279,6 @@ def frequency_array(session, bin_size,
             for neuron in frequencies[0,]:
 
 
-                ### !!!!
-                ####!!!! there is an error in this loop
-                ## !!!!!
 
                 #make cluster identiy in frequencies into int so it can be found in clusters_idx
                 #for adding firirng rate to bin_arr 
@@ -315,9 +311,9 @@ def frequency_array(session, bin_size,
 def make_toeplitz_matrix(session,
                          bin_size,
                          kernels, 
+                         filepath,
                          filter_by_engagement = True, 
-                         select_trials = [],
-                         FILEPATH):
+                         select_trials = []):
     """
     Makes the matrix X aka P in Steinmetz et al., (2019), the Toeplitz matrix of
     dimension.  THe kernel is either 0 or 1 or -1
@@ -343,7 +339,7 @@ def make_toeplitz_matrix(session,
                                       'trials.visualStim_contrastLeft.npy',
                                       'trials.visualStim_contrastRight.npy',
                                       'trials.visualStim_times.npy'],
-                                     steinmetzpath = FILEPATH)
+                                     steinmetzpath = filepath)
     
     # filter by the engagfement index filter provided is set tp ture by default
     # alternately a filter may be supplied
@@ -513,8 +509,7 @@ def make_toeplitz_matrix(session,
             #  -0.25s >= movement start time =< 0.025s therefore...
             move_end = ceil( move_start + (0.275/bin_size) )
             
-            ##!!!! this is causing an error needs testing
-            #add contrast to our matrix
+            
             #Left Choice Kernel contrast = 1 along diagonal aligned to movement start
             if responsechoice[trial]==1:
                 #Left choice
@@ -685,7 +680,7 @@ def frequency_array_v2(session, bin_size,
         spikes = stein.calldata(session, ['spikes.clusters.npy',
                                   'spikes.times.npy',
                                   'clusters._phy_annotation.npy'],
-                        steinmetzpath=FILEPATH)
+                        steinmetzpath=filepath)
         
         
         
@@ -725,7 +720,7 @@ def frequency_array_v2(session, bin_size,
     #getting thetrials objects we need
     trials = stein.calldata(session, ['trials.intervals.npy',
                                       'trials.included.npy'],
-                steinmetzpath=FILEPATH)
+                steinmetzpath=filepath,)
     
     
     # filter by the engagfement index filter provided is set tp ture by default
@@ -780,9 +775,7 @@ def frequency_array_v2(session, bin_size,
             for neuron in frequencies[0,]:
 
 
-                ### !!!!
-                ####!!!! there is an error in this loop
-                ## !!!!!
+
 
                 #make cluster identiy in frequencies into int so it can be found in clusters_idx
                 #for adding firirng rate to bin_arr 
