@@ -14,7 +14,7 @@ from math import floor
 import scipy.ndimage
 import timeit #for testing and tracking run times
 import scipy.stats 
-os.chdir('C:/Users/angus/Desktop/SteinmetzLab/Analysis')
+#os.chdir('C:/Users/angus/Desktop/SteinmetzLab/Analysis')
 import getSteinmetz2019data as stein
 import warnings
 import sklearn
@@ -97,19 +97,17 @@ end= timeit.timeit()
 print(start-end)
 # %%
 
-import KernelRegDraft as kreg
-angus_localpath = os.fspath(r'C:\Users\angus\Desktop\SteinmetzLab\9598406\spikeAndBehavioralData\allData')
 fetched_obj = stein.calldata('Theiler_2017-10-11',
                                     ['wheelMoves.intervals.npy',
                                     'licks.times.npy'],
-                                    steinmetzpath = angus_localpath)
+                                    steinmetzpath = path_to_data)
 
 movesintervals = fetched_obj['wheelMovesintervals']
 lickstimes = fetched_obj['lickstimes']
 
 licksintervals = kreg.generate_event_interval(lickstimes, [-0.025,0.025])
-licksintervals.shape
-type(licksintervals)
+print( licksintervals.shape )
+print( type(licksintervals) )
 
 # %%
 I =  np.row_stack([movesintervals, licksintervals])
