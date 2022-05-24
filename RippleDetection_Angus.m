@@ -86,6 +86,18 @@ session_counter = 1; % just here to fill in the for loop index, may remove loop 
     %srate = 1000; % needs to be cahnged to 2500 possibly, need to check
     camera_clock = eeg(:,5); % these lines may need to be replaced by first and last sample from the alyx files
     camera_function = eeg(:,8);
+   
+   % reading in the intervals file we are using 
+   T = readtable('myfile.csv');
+ 
+%That's just linearly interpolating between the times given for the first and last samples.
+%So, to get the time at which every sample occurred, use this line in matlab:
+%include a line here that can autodetect which session we are in so we can
+%call the file
+
+tsData = readNPY('...lf.timestamps.npy'); allTS = interp1(tsData(:,1), tsData(:,2), tsData(1,1):tsData(2,1));
+
+
     
     clock_indx = []; % this may require information from the Alyx files
     for ii = 1:size(camera_function,1)
