@@ -16,19 +16,23 @@ tab = readtable('tmp.csv', 'ReadVariableNames', false);
 
 
 % my sample text contains ---> apple, baseball, car, donut, & elephant in single column.
-filename = append(pwd,'\','probefile.txt');
-FID = fopen(filename);
+filename = append(pwd,
+FID = fopen(fileName);
 data = textscan(FID,'%s');
 fclose(FID);
-probename = string(data{:});
+stringData = string(data{:});
 
+
+
+probename = 'Tatum_2017-12-09_K1_g0_t0';
 lfp_path = append('C:\Users\angus\Desktop\SteinmetzLab\LFP\',probename,'.imec.lf.bin');
 %Neuroinformatics class from Imperial College London, has a lecture on LFP
 % https://www.ucl.ac.uk/cortexlab/neuroinformatics-class-page
 % Session is Tatum-12-09
+fid = fopen('C:\Users\angus\Desktop\SteinmetzLab\LFP\Tatum_2017-12-09_K1_g0_t0.imec.lf.bin', 'r');
+dat = fread(fid, [385 Inf], '*int16'); %385 specifies channels
+fclose(fid);
 
-%lfp_path =
-%'C:\Users\angus\Desktop\SteinmetzLab\LFP\Tatum_2017-12-09_K1_g0_t0.imec.lf.bin';
 fid = fopen(lfp_path, 'r');
 dat = fread(fid, [385 Inf], '*int16'); %385 specifies channels
 fclose(fid);
