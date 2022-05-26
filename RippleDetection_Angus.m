@@ -34,6 +34,7 @@ dat = fread(fid, [385 Inf], '*int16'); %385 specifies channels
 fclose(fid);
 
 % We will need this for 
+chanels_of_interest = readNPY('these_channels.npy');
 
 dat = dat(349:383, :); % these are the channels in CA3 for this session according to the allen ontology file
 % we need to match the samples to the time on the behavioural data, remove
