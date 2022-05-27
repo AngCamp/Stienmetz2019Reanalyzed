@@ -10,6 +10,14 @@ clc
 % read in matlab with this code, note [385 inf] in fread will load the full
 % session for the probe this is not recomended
 
+%adding the functions we need to read npy files
+addpath('matlab_npy/','-end')
+%testing will remove later
+channels_of_interest = readNPY('these_channels.npy');
+%at the end we will use the following:
+% writeNPY(SWR_kernel,"rippledetection_output.npy");
+
+
 %getting files out of the 
 probename = csvread('probefile.csv');
 tab = readtable('tmp.csv', 'ReadVariableNames', false);
@@ -34,7 +42,7 @@ dat = fread(fid, [385 Inf], '*int16'); %385 specifies channels
 fclose(fid);
 
 % We will need this for 
-chanels_of_interest = readNPY('these_channels.npy');
+channels_of_interest = readNPY('these_channels.npy');
 
 dat = dat(349:383, :); % these are the channels in CA3 for this session according to the allen ontology file
 % we need to match the samples to the time on the behavioural data, remove
